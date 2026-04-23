@@ -43,13 +43,27 @@ Migration tooling is now available through the scripts in `backend/scripts/dev/`
 Expected setup:
 
 - a running local PostgreSQL instance
-- `DATABASE_URL` exported in the shell
+- either `DATABASE_URL` exported in the shell
+- or PostgreSQL-style environment variables such as `PGUSER`, `PGDATABASE`, and `PGPASSWORD`
 
 Example environment variable:
 
 ```bash
 export DATABASE_URL='postgres://user:pass@localhost:5432/repocompass?sslmode=disable'
 ```
+
+The scripts also support PostgreSQL-style environment variables:
+
+```bash
+export PGUSER=postgres
+export PGDATABASE=postgres
+export PGPASSWORD='your-password'
+```
+
+Optional variables:
+
+- `PGHOST` defaults to `localhost`
+- `PGPORT` defaults to `5432`
 
 Available scripts:
 
@@ -61,12 +75,24 @@ Notes:
 
 - these scripts use `golang-migrate`
 - the scripts target `backend/db/migrations`
+- if you use a password with special URL characters, prefer `DATABASE_URL` over the PG-style fallback
 - local PostgreSQL provisioning is still out of scope for this task and will be addressed separately
 - `migrate-status.sh` maps to the upstream `version` command because `golang-migrate` does not expose a literal `status` subcommand
 
 ## Current Status
 
-- `migrations/` exists and is intentionally empty except for placeholder tracking
+- `migrations/` now includes a bootstrap validation migration
 - `seeds/` exists and is intentionally empty except for placeholder tracking
 - migration tooling is available through `backend/scripts/dev/`
 - seed execution tooling is not implemented in this task
+
+## Bootstrap Validation Migration
+
+The first migration in this repository is intentionally minimal and exists only to validate the migration toolchain and rollback workflow.
+
+Current bootstrap migration:
+
+- `000001_create_schema_bootstrap_checks.up.sql`
+- `000001_create_schema_bootstrap_checks.down.sql`
+
+This migration creates and removes a small table named `schema_bootstrap_checks`. It is infrastructure-focused and should not be treated as the first real RepoCompass domain schema.
