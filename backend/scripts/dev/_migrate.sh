@@ -6,6 +6,14 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BACKEND_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 MIGRATIONS_DIR="$BACKEND_DIR/db/migrations"
 MIGRATE_VERSION="v4.19.1"
+ENV_FILE="$BACKEND_DIR/.env"
+
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
 
 if [ "${DATABASE_URL:-}" = "" ]; then
   PGHOST_VALUE="${PGHOST:-localhost}"

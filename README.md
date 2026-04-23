@@ -35,6 +35,7 @@ The project is still in its initial setup phase. Start by reviewing the current 
 - [docs/structure.md](./docs/structure.md): Initial repository and backend directory structure
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
 - [backend/db/README.md](./backend/db/README.md): Database directory usage guide
+- [backend/.env.example](./backend/.env.example): Local backend and database environment template
 
 ### Backend workspace
 
@@ -60,13 +61,30 @@ The backend also includes:
 - internal package scaffolding for core modules under `backend/internal`
 - documented database layout under `backend/db`
 - script-based migration workflow under `backend/scripts/dev`
+- standard local `fmt`, `vet`, and `test` scripts under `backend/scripts/dev`
 
 As backend modules and runnable services are introduced, this README should be updated with:
 
 - dependency installation steps
-- environment variable setup
 - database startup instructions
-- run, test, and migration commands
+- higher-level workflow commands if new wrappers are introduced
+
+### Backend local workflow
+
+Configure local backend and database values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Then use the standard backend scripts:
+
+```bash
+./backend/scripts/dev/fmt.sh
+./backend/scripts/dev/vet.sh
+./backend/scripts/dev/test.sh
+./backend/scripts/dev/migrate-status.sh
+```
 
 ## Documentation
 
@@ -75,6 +93,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 - [docs/structure.md](./docs/structure.md): Repository and backend structure reference
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
 - [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
+- [backend/.env.example](./backend/.env.example): Local environment variable template
 
 ## Current Status
 
@@ -84,6 +103,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 - Internal package scaffolding is in place
 - Database migration and seed organization is documented
 - Script-based migration workflow is in place
+- Standard local `fmt`, `vet`, and `test` scripts are in place
 - Project documentation has started in English
 - Local PostgreSQL provisioning is not implemented yet
 - CI workflow is not implemented yet
