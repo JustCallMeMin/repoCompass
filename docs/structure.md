@@ -35,6 +35,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/db/migrations/`: Schema migration files.
 - `backend/db/seeds/`: Seed data and bootstrap database scripts.
 - `backend/testdata/`: Shared test fixtures and sample inputs.
+- `backend/testdata/README.md`: Fixture naming and usage conventions for backend tests.
 - `backend/testdata/fixtures/`: Concrete fixture files used by tests.
 - `backend/scripts/`: Developer and automation scripts.
 - `backend/scripts/dev/`: Local development helper scripts.
