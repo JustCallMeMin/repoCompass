@@ -82,6 +82,14 @@ Available scripts:
 - `backend/scripts/dev/db-up.sh`: start local PostgreSQL with Docker Compose
 - `backend/scripts/dev/db-down.sh`: stop the local Docker Compose PostgreSQL service
 
+Equivalent Make aliases:
+
+- `make migrate-up`
+- `make migrate-down`
+- `make migrate-status`
+- `make db-up`
+- `make db-down`
+
 Notes:
 
 - these scripts use `golang-migrate`

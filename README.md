@@ -81,12 +81,14 @@ cp backend/.env.example backend/.env
 Then use the standard backend scripts:
 
 ```bash
-./backend/scripts/dev/db-up.sh
-./backend/scripts/dev/fmt.sh
-./backend/scripts/dev/vet.sh
-./backend/scripts/dev/test.sh
-./backend/scripts/dev/migrate-status.sh
+make db-up
+make fmt
+make vet
+make test
+make migrate-status
 ```
+
+The Makefile is the preferred shorthand. The underlying scripts in `backend/scripts/dev/` remain the source of truth and can still be run directly when needed.
 
 ## Documentation
 

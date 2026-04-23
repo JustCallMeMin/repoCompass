@@ -54,17 +54,24 @@ Current subdirectories under `backend/` include:
 
 The repository is still in the bootstrap phase, but the standard local workflow scripts now exist under `backend/scripts/dev/`.
 
-- Formatting: `backend/scripts/dev/fmt.sh`
-- Linting/static checks: `backend/scripts/dev/vet.sh`
-- Testing: `backend/scripts/dev/test.sh`
+- Formatting: `make fmt`
+- Linting/static checks: `make vet`
+- Testing: `make test`
 
 At the current stage:
 
 - the backend Go module is already in place
 - the repository does not yet provide CI workflow definitions
-- the repository does not yet provide Make targets such as `make fmt`, `make vet`, or `make test`
+- the repository now provides Make targets such as `make fmt`, `make vet`, and `make test`
 
-For local database workflow, copy `backend/.env.example` to `backend/.env` and set the PostgreSQL values for your machine. The migration scripts under `backend/scripts/dev/` will auto-load that file when it exists.
+For local database workflow, copy `backend/.env.example` to `backend/.env` and use:
+
+- `make db-up`
+- `make migrate-status`
+- `make migrate-up`
+- `make migrate-down`
+
+The underlying scripts under `backend/scripts/dev/` still remain available and continue to auto-load `backend/.env` when it exists.
 
 ## Contribution Conventions
 
