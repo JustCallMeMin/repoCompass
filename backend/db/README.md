@@ -45,6 +45,7 @@ Expected setup:
 - a running local PostgreSQL instance
 - either `DATABASE_URL` exported in the shell
 - or PostgreSQL-style environment variables such as `PGUSER`, `PGDATABASE`, and `PGPASSWORD`
+- or values stored in `backend/.env`
 
 Example environment variable:
 
@@ -59,6 +60,8 @@ export PGUSER=postgres
 export PGDATABASE=postgres
 export PGPASSWORD='your-password'
 ```
+
+You can also store local values in `backend/.env` by copying `backend/.env.example`.
 
 Optional variables:
 
@@ -75,6 +78,7 @@ Notes:
 
 - these scripts use `golang-migrate`
 - the scripts target `backend/db/migrations`
+- the scripts auto-load `backend/.env` when present
 - if you use a password with special URL characters, prefer `DATABASE_URL` over the PG-style fallback
 - local PostgreSQL provisioning is still out of scope for this task and will be addressed separately
 - `migrate-status.sh` maps to the upstream `version` command because `golang-migrate` does not expose a literal `status` subcommand

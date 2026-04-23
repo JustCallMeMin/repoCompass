@@ -52,19 +52,19 @@ Current subdirectories under `backend/` include:
 
 ## Formatting, Linting, and Testing
 
-The repository is still in the bootstrap phase. The baseline conventions are defined now, even if not all commands are fully runnable yet.
+The repository is still in the bootstrap phase, but the standard local workflow scripts now exist under `backend/scripts/dev/`.
 
-- Formatting: use `gofmt` for Go source files
-- Linting/static checks: use `go vet` as the initial baseline check
-- Testing: use `go test ./...` as the default test command once the Go module and packages are in place
+- Formatting: `backend/scripts/dev/fmt.sh`
+- Linting/static checks: `backend/scripts/dev/vet.sh`
+- Testing: `backend/scripts/dev/test.sh`
 
 At the current stage:
 
-- the repository does not yet contain `go.mod`
+- the backend Go module is already in place
 - the repository does not yet provide CI workflow definitions
-- the repository does not yet provide wrapper commands such as `make fmt`, `make vet`, or `make test`
+- the repository does not yet provide Make targets such as `make fmt`, `make vet`, or `make test`
 
-Contributors should follow these baseline conventions as the intended local workflow until later Milestone 0 tasks formalize the tooling.
+For local database workflow, copy `backend/.env.example` to `backend/.env` and set the PostgreSQL values for your machine. The migration scripts under `backend/scripts/dev/` will auto-load that file when it exists.
 
 ## Contribution Conventions
 
