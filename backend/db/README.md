@@ -36,8 +36,37 @@ The exact execution workflow for seeds is not defined yet. For now, this directo
 - Separate schema changes from data seeding.
 - Do not add usage commands to documentation until migration and seed tooling is implemented.
 
+## Local Migration Workflow
+
+Migration tooling is now available through the scripts in `backend/scripts/dev/`.
+
+Expected setup:
+
+- a running local PostgreSQL instance
+- `DATABASE_URL` exported in the shell
+
+Example environment variable:
+
+```bash
+export DATABASE_URL='postgres://user:pass@localhost:5432/repocompass?sslmode=disable'
+```
+
+Available scripts:
+
+- `backend/scripts/dev/migrate-up.sh`: apply all pending up migrations
+- `backend/scripts/dev/migrate-down.sh`: apply down migrations
+- `backend/scripts/dev/migrate-status.sh`: show migration version status
+
+Notes:
+
+- these scripts use `golang-migrate`
+- the scripts target `backend/db/migrations`
+- local PostgreSQL provisioning is still out of scope for this task and will be addressed separately
+- `migrate-status.sh` maps to the upstream `version` command because `golang-migrate` does not expose a literal `status` subcommand
+
 ## Current Status
 
 - `migrations/` exists and is intentionally empty except for placeholder tracking
 - `seeds/` exists and is intentionally empty except for placeholder tracking
-- tooling for running migrations and seeds is not implemented in this task
+- migration tooling is available through `backend/scripts/dev/`
+- seed execution tooling is not implemented in this task

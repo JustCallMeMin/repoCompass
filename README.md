@@ -24,7 +24,7 @@ For more details about the backend folder structure, see [docs/structure.md](./d
 ### Clone the repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/JustCallMeMin/repoCompass.git
 cd repocompass
 ```
 
@@ -34,6 +34,7 @@ The project is still in its initial setup phase. Start by reviewing the current 
 
 - [docs/structure.md](./docs/structure.md): Initial repository and backend directory structure
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
+- [backend/db/README.md](./backend/db/README.md): Database directory usage guide
 
 ### Backend workspace
 
@@ -53,6 +54,13 @@ go run ./cmd/repocompass --help
 go run ./cmd/repocompass scan
 ```
 
+The backend also includes:
+
+- a Cobra-based CLI skeleton at `backend/cmd/repocompass`
+- internal package scaffolding for core modules under `backend/internal`
+- documented database layout under `backend/db`
+- script-based migration workflow under `backend/scripts/dev`
+
 As backend modules and runnable services are introduced, this README should be updated with:
 
 - dependency installation steps
@@ -66,13 +74,20 @@ The repository currently uses local documentation under `docs/` as the repositor
 
 - [docs/structure.md](./docs/structure.md): Repository and backend structure reference
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
+- [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
 
 ## Current Status
 
 - Initial repository structure is in place
-- Backend foundational directories are present
+- Backend Go module is in place
+- Cobra-based CLI skeleton is in place
+- Internal package scaffolding is in place
+- Database migration and seed organization is documented
+- Script-based migration workflow is in place
 - Project documentation has started in English
-- Application code and executable setup are not yet added
+- Local PostgreSQL provisioning is not implemented yet
+- CI workflow is not implemented yet
+- Real business logic is not implemented yet
 
 ## Contributing Notes
 
