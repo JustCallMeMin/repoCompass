@@ -81,7 +81,18 @@ Notes:
 
 ## Current Status
 
-- `migrations/` exists and is intentionally empty except for placeholder tracking
+- `migrations/` now includes a bootstrap validation migration
 - `seeds/` exists and is intentionally empty except for placeholder tracking
 - migration tooling is available through `backend/scripts/dev/`
 - seed execution tooling is not implemented in this task
+
+## Bootstrap Validation Migration
+
+The first migration in this repository is intentionally minimal and exists only to validate the migration toolchain and rollback workflow.
+
+Current bootstrap migration:
+
+- `000001_create_schema_bootstrap_checks.up.sql`
+- `000001_create_schema_bootstrap_checks.down.sql`
+
+This migration creates and removes a small table named `schema_bootstrap_checks`. It is infrastructure-focused and should not be treated as the first real RepoCompass domain schema.
