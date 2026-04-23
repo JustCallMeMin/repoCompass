@@ -31,6 +31,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/internal/storage/`: Storage abstractions and persistence helpers.
 - `backend/internal/service/`: Business logic and service orchestration.
 - `backend/db/`: Database-related assets.
+- `backend/db/README.md`: Usage guide for organizing migrations and seed data during the bootstrap phase.
 - `backend/db/migrations/`: Schema migration files.
 - `backend/db/seeds/`: Seed data and bootstrap database scripts.
 - `backend/testdata/`: Shared test fixtures and sample inputs.
