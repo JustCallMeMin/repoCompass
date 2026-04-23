@@ -62,6 +62,7 @@ The backend also includes:
 - documented database layout under `backend/db`
 - script-based migration workflow under `backend/scripts/dev`
 - standard local `fmt`, `vet`, and `test` scripts under `backend/scripts/dev`
+- Docker Compose-based local PostgreSQL bootstrap
 
 As backend modules and runnable services are introduced, this README should be updated with:
 
@@ -80,6 +81,7 @@ cp backend/.env.example backend/.env
 Then use the standard backend scripts:
 
 ```bash
+./backend/scripts/dev/db-up.sh
 ./backend/scripts/dev/fmt.sh
 ./backend/scripts/dev/vet.sh
 ./backend/scripts/dev/test.sh
@@ -104,8 +106,8 @@ The repository currently uses local documentation under `docs/` as the repositor
 - Database migration and seed organization is documented
 - Script-based migration workflow is in place
 - Standard local `fmt`, `vet`, and `test` scripts are in place
+- Docker Compose-based local PostgreSQL bootstrap is in place
 - Project documentation has started in English
-- Local PostgreSQL provisioning is not implemented yet
 - CI workflow is not implemented yet
 - Real business logic is not implemented yet
 

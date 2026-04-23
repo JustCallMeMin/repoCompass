@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: repocompass-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: repocompass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - repocompass-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  repocompass-postgres-data:
