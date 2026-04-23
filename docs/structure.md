@@ -19,8 +19,16 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/cmd/server/`: Main server binary startup logic.
 - `backend/internal/`: Private application packages that should not be imported from outside the module.
 - `backend/internal/app/`: Application wiring and runtime composition.
+- `backend/internal/assessment/`: Assessment models and assessment coordination building blocks.
+- `backend/internal/cli/`: CLI command wiring for the `repocompass` executable.
 - `backend/internal/config/`: Configuration loading and configuration models.
+- `backend/internal/integration/`: External integration boundaries.
 - `backend/internal/repository/`: Data access layer and persistence-facing code.
+- `backend/internal/report/`: Report generation building blocks and output shaping.
+- `backend/internal/rules/`: Rule evaluation and rule definitions.
+- `backend/internal/scan/`: Scan orchestration primitives.
+- `backend/internal/snapshot/`: Snapshot lifecycle and snapshot creation primitives.
+- `backend/internal/storage/`: Storage abstractions and persistence helpers.
 - `backend/internal/service/`: Business logic and service orchestration.
 - `backend/db/`: Database-related assets.
 - `backend/db/migrations/`: Schema migration files.

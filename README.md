@@ -45,6 +45,14 @@ The backend workspace has already been prepared with the expected top-level fold
 - `backend/testdata`
 - `backend/scripts`
 
+The backend now includes a minimal Go module and CLI entrypoint:
+
+```bash
+cd backend
+go run ./cmd/repocompass --help
+go run ./cmd/repocompass scan
+```
+
 As backend modules and runnable services are introduced, this README should be updated with:
 
 - dependency installation steps
