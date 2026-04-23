@@ -16,26 +16,10 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 if [ "${DATABASE_URL:-}" = "" ]; then
-  PGHOST_VALUE="${PGHOST:-localhost}"
-  PGPORT_VALUE="${PGPORT:-5432}"
-  PGUSER_VALUE="${PGUSER:-}"
-  PGDATABASE_VALUE="${PGDATABASE:-}"
-  PGPASSWORD_VALUE="${PGPASSWORD:-}"
-
-  if [ "$PGUSER_VALUE" != "" ] && [ "$PGDATABASE_VALUE" != "" ]; then
-    DATABASE_URL="postgres://${PGUSER_VALUE}"
-
-    if [ "$PGPASSWORD_VALUE" != "" ]; then
-      DATABASE_URL="${DATABASE_URL}:${PGPASSWORD_VALUE}"
-    fi
-
-    DATABASE_URL="${DATABASE_URL}@${PGHOST_VALUE}:${PGPORT_VALUE}/${PGDATABASE_VALUE}?sslmode=disable"
-  else
-    echo "DATABASE_URL is required." >&2
-    echo "Alternatively set PGUSER and PGDATABASE, with optional PGPASSWORD, PGHOST, and PGPORT." >&2
-    echo "Example: export DATABASE_URL='postgres://user:pass@localhost:5432/dbname?sslmode=disable'" >&2
-    exit 1
-  fi
+  echo "DATABASE_URL is required." >&2
+  echo "Set it directly in the shell or in backend/.env." >&2
+  echo "Example: export DATABASE_URL='postgres://postgres:postgres@localhost:5432/repocompass?sslmode=disable'" >&2
+  exit 1
 fi
 
 exec go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@"$MIGRATE_VERSION" \
