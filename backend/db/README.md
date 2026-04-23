@@ -43,13 +43,27 @@ Migration tooling is now available through the scripts in `backend/scripts/dev/`
 Expected setup:
 
 - a running local PostgreSQL instance
-- `DATABASE_URL` exported in the shell
+- either `DATABASE_URL` exported in the shell
+- or PostgreSQL-style environment variables such as `PGUSER`, `PGDATABASE`, and `PGPASSWORD`
 
 Example environment variable:
 
 ```bash
 export DATABASE_URL='postgres://user:pass@localhost:5432/repocompass?sslmode=disable'
 ```
+
+The scripts also support PostgreSQL-style environment variables:
+
+```bash
+export PGUSER=postgres
+export PGDATABASE=postgres
+export PGPASSWORD='your-password'
+```
+
+Optional variables:
+
+- `PGHOST` defaults to `localhost`
+- `PGPORT` defaults to `5432`
 
 Available scripts:
 
@@ -61,6 +75,7 @@ Notes:
 
 - these scripts use `golang-migrate`
 - the scripts target `backend/db/migrations`
+- if you use a password with special URL characters, prefer `DATABASE_URL` over the PG-style fallback
 - local PostgreSQL provisioning is still out of scope for this task and will be addressed separately
 - `migrate-status.sh` maps to the upstream `version` command because `golang-migrate` does not expose a literal `status` subcommand
 
