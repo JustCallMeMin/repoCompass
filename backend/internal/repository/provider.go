@@ -8,7 +8,7 @@ import (
 // RepositoryProvider resolves repository sources into repository metadata.
 type RepositoryProvider interface {
 	SourceType() SourceType
-	Resolve(ctx context.Context, source RepositorySource) (Repository, error)
+	Resolve(ctx context.Context, source RepositorySource) (RepositoryResolution, error)
 }
 
 // ProviderRegistry stores repository providers by supported source type.

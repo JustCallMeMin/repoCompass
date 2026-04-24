@@ -53,6 +53,6 @@ func (p fakeProvider) SourceType() SourceType {
 	return p.sourceType
 }
 
-func (p fakeProvider) Resolve(context.Context, RepositorySource) (Repository, error) {
-	return Repository{}, errors.New("fake provider should not be called by registry tests")
+func (p fakeProvider) Resolve(context.Context, RepositorySource) (RepositoryResolution, error) {
+	return RepositoryResolution{}, errors.New("fake provider should not be called by registry tests")
 }

@@ -17,6 +17,12 @@ type RepositorySource struct {
 	URL  string
 }
 
+// RepositoryResolution contains repository metadata plus snapshot seed metadata.
+type RepositoryResolution struct {
+	Repository       Repository
+	SnapshotMetadata map[string]string
+}
+
 // Provider identifies the platform or source family backing a repository.
 type Provider string
 

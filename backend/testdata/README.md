@@ -40,5 +40,5 @@ Use `backend/testdata/fixtures/` for reusable fixture files such as:
 
 ## Current Status
 
-- `backend/testdata/fixtures/` exists and is currently empty
-- `.gitkeep` remains in `backend/testdata/fixtures/` until the first real fixture file is added
+- `backend/testdata/fixtures/` contains the first local repository fixture
+- empty fixture subdirectories should keep `.gitkeep` only until they contain real fixture files
