@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 )
 
 func TestLocalConfigurationResolver_ResolveConfig(t *testing.T) {
@@ -22,18 +24,14 @@ func TestLocalConfigurationResolver_ResolveConfig(t *testing.T) {
 
 	t.Run("invalid repoPath", func(t *testing.T) {
 		_, err := resolver.ResolveConfig(ctx, "nonexistent_dir_12345", Config{})
-		if err == nil {
-			t.Fatal("expected error for missing path")
-		}
+		assertErrorCode(t, err, rcerr.CodeInvalidSource)
 	})
 
 	t.Run("repoPath is file", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "somefile.txt")
 		os.WriteFile(file, []byte("test"), 0644)
 		_, err := resolver.ResolveConfig(ctx, file, Config{})
-		if err == nil {
-			t.Fatal("expected error for path being a file")
-		}
+		assertErrorCode(t, err, rcerr.CodeInvalidSource)
 	})
 
 	t.Run("defaults only", func(t *testing.T) {
@@ -79,6 +77,35 @@ enableDefaultAnalyzers: false
 		}
 	})
 
+	t.Run("yml file override", func(t *testing.T) {
+		dir := t.TempDir()
+		cfgContent := []byte(`
+excludes:
+  - "yml_override"
+maxFilesizeBytes: 7000000
+enableDefaultAnalyzers: false
+`)
+		err := os.WriteFile(filepath.Join(dir, ".repocompass.yml"), cfgContent, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := resolver.ResolveConfig(ctx, dir, Config{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(got.Excludes) != 1 || got.Excludes[0] != "yml_override" {
+			t.Errorf("unexpected excludes: %v", got.Excludes)
+		}
+		if got.MaxFileSizeBytes != 7000000 {
+			t.Errorf("unexpected MaxFileSizeBytes: %d", got.MaxFileSizeBytes)
+		}
+		if got.EnableDefaultAnalyzers != false {
+			t.Errorf("unexpected EnableDefaultAnalyzers: %v", got.EnableDefaultAnalyzers)
+		}
+	})
+
 	t.Run("invalid yaml", func(t *testing.T) {
 		dir := t.TempDir()
 		err := os.WriteFile(filepath.Join(dir, ".repocompass.yml"), []byte("invalid:\n  yaml:\n - structure"), 0644)
@@ -87,9 +114,7 @@ enableDefaultAnalyzers: false
 		}
 
 		_, err = resolver.ResolveConfig(ctx, dir, Config{})
-		if err == nil {
-			t.Fatal("expected error for invalid YAML")
-		}
+		assertErrorCode(t, err, rcerr.CodeConfigResolveFailed)
 	})
 
 	t.Run("CLI overrides file and defaults", func(t *testing.T) {
@@ -141,4 +166,19 @@ maxFilesizeBytes: 5000000
 			t.Errorf("expected empty excludes, got: %v", got.Excludes)
 		}
 	})
+}
+
+func assertErrorCode(t *testing.T, err error, expected rcerr.ErrorCode) {
+	t.Helper()
+
+	if err == nil {
+		t.Fatalf("expected error code %q, got nil", expected)
+	}
+	code, ok := rcerr.CodeOf(err)
+	if !ok {
+		t.Fatalf("expected rcerr.Error, got %T: %v", err, err)
+	}
+	if code != expected {
+		t.Errorf("expected code %q, got %q", expected, code)
+	}
 }

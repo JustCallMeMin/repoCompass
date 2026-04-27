@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,10 +31,12 @@ func (r *LocalConfigurationResolver) ResolveConfig(ctx context.Context, repoPath
 
 	info, err := os.Stat(repoPath)
 	if err != nil {
-		return EffectiveConfiguration{}, fmt.Errorf("invalid repository path: %w", err)
+		return EffectiveConfiguration{}, rcerr.New(rcerr.CodeInvalidSource,
+			fmt.Sprintf("invalid repository path: %s", repoPath), err)
 	}
 	if !info.IsDir() {
-		return EffectiveConfiguration{}, fmt.Errorf("repository path must be a directory")
+		return EffectiveConfiguration{}, rcerr.New(rcerr.CodeInvalidSource,
+			fmt.Sprintf("repository path must be a directory: %s", repoPath), nil)
 	}
 
 	defaults := GetDefaults()
@@ -48,14 +51,15 @@ func (r *LocalConfigurationResolver) ResolveConfig(ctx context.Context, repoPath
 		if err == nil {
 			// File exists, attempt to parse
 			if err := yaml.Unmarshal(data, &fileCfg); err != nil {
-				return EffectiveConfiguration{}, fmt.Errorf("failed to parse configuration file %s: %w", filename, err)
+				return EffectiveConfiguration{}, rcerr.New(rcerr.CodeConfigResolveFailed,
+					fmt.Sprintf("failed to parse configuration file %s", filename), err)
 			}
 			foundFile = true
 			break
 		}
 		if !os.IsNotExist(err) {
-			// Some other error like permission denied
-			return EffectiveConfiguration{}, fmt.Errorf("error reading configuration file %s: %w", filename, err)
+			return EffectiveConfiguration{}, rcerr.New(rcerr.CodeConfigResolveFailed,
+				fmt.Sprintf("error reading configuration file %s", filename), err)
 		}
 	}
 

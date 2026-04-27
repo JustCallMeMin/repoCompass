@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"strings"
 	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 )
 
@@ -45,10 +45,12 @@ func (c Creator) Create(ctx context.Context, request CreateRequest) (RepositoryS
 	}
 
 	if strings.TrimSpace(request.Repository.ID) == "" {
-		return RepositorySnapshot{}, fmt.Errorf("repository ID cannot be empty")
+		return RepositorySnapshot{}, rcerr.New(rcerr.CodeSnapshotCreateFailed,
+			"repository ID cannot be empty", nil)
 	}
 	if request.SourceType == "" {
-		return RepositorySnapshot{}, fmt.Errorf("snapshot source type cannot be empty")
+		return RepositorySnapshot{}, rcerr.New(rcerr.CodeSnapshotCreateFailed,
+			"snapshot source type cannot be empty", nil)
 	}
 
 	capturedAt := c.clock().UTC()

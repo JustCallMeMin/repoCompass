@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 )
 
 // LocalRepositoryProvider resolves repositories from local filesystem paths.
@@ -33,23 +35,28 @@ func (p LocalRepositoryProvider) SourceType() SourceType {
 // Resolve turns a local filesystem path into repository metadata.
 func (p LocalRepositoryProvider) Resolve(ctx context.Context, source RepositorySource) (RepositoryResolution, error) {
 	if source.Type != "" && source.Type != SourceTypeLocal {
-		return RepositoryResolution{}, fmt.Errorf("local repository provider does not support source type %q", source.Type)
+		return RepositoryResolution{}, rcerr.New(rcerr.CodeInvalidSource,
+			fmt.Sprintf("local repository provider does not support source type %q", source.Type), nil)
 	}
 	if strings.TrimSpace(source.Path) == "" {
-		return RepositoryResolution{}, fmt.Errorf("local repository path cannot be empty")
+		return RepositoryResolution{}, rcerr.New(rcerr.CodeInvalidSource,
+			"local repository path cannot be empty", nil)
 	}
 
 	absolutePath, err := filepath.Abs(source.Path)
 	if err != nil {
-		return RepositoryResolution{}, fmt.Errorf("resolve local repository path: %w", err)
+		return RepositoryResolution{}, rcerr.New(rcerr.CodeRepoResolveFailed,
+			"failed to resolve absolute path", err)
 	}
 
 	info, err := os.Stat(absolutePath)
 	if err != nil {
-		return RepositoryResolution{}, fmt.Errorf("stat local repository path: %w", err)
+		return RepositoryResolution{}, rcerr.New(rcerr.CodeInvalidSource,
+			fmt.Sprintf("local repository path not found: %s", absolutePath), err)
 	}
 	if !info.IsDir() {
-		return RepositoryResolution{}, fmt.Errorf("local repository path must be a directory: %s", absolutePath)
+		return RepositoryResolution{}, rcerr.New(rcerr.CodeInvalidSource,
+			fmt.Sprintf("local repository path must be a directory: %s", absolutePath), nil)
 	}
 
 	defaultBranch := readDefaultBranch(ctx, absolutePath)

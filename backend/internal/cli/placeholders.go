@@ -6,13 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newScanCmd() *cobra.Command {
-	return newPlaceholderCmd(
-		"scan",
-		"Scan a repository with the RepoCompass pipeline.",
-	)
-}
-
 func newReportCmd() *cobra.Command {
 	return newPlaceholderCmd(
 		"report",

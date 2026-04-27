@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestGetDefaults(t *testing.T) {
+	defaults := GetDefaults()
+
+	if !reflect.DeepEqual(defaults.Excludes, []string{".git", "node_modules"}) {
+		t.Fatalf("unexpected default excludes: got %v", defaults.Excludes)
+	}
+	if defaults.MaxFileSizeBytes == nil {
+		t.Fatal("expected default MaxFileSizeBytes to be set")
+	}
+	if *defaults.MaxFileSizeBytes != 1048576 {
+		t.Fatalf("unexpected default MaxFileSizeBytes: got %d", *defaults.MaxFileSizeBytes)
+	}
+	if defaults.EnableDefaultAnalyzers == nil {
+		t.Fatal("expected default EnableDefaultAnalyzers to be set")
+	}
+	if !*defaults.EnableDefaultAnalyzers {
+		t.Fatal("expected default EnableDefaultAnalyzers to be true")
+	}
+}
+
 func TestResolve(t *testing.T) {
 	defaultMaxFileSize := int64(1048576) // 1MB
 	cliMaxFileSize := int64(2048576)     // 2MB

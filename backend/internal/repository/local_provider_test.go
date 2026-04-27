@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 )
 
 func TestLocalRepositoryProviderResolvesValidPath(t *testing.T) {
@@ -64,6 +66,26 @@ func TestLocalRepositoryProviderResolvesValidPath(t *testing.T) {
 	}
 }
 
+func TestLocalRepositoryProviderRejectsEmptyPath(t *testing.T) {
+	provider := NewLocalRepositoryProvider()
+
+	_, err := provider.Resolve(context.Background(), RepositorySource{
+		Type: SourceTypeLocal,
+		Path: "   ",
+	})
+	assertErrorCode(t, err, rcerr.CodeInvalidSource)
+}
+
+func TestLocalRepositoryProviderRejectsUnsupportedSourceType(t *testing.T) {
+	provider := NewLocalRepositoryProvider()
+
+	_, err := provider.Resolve(context.Background(), RepositorySource{
+		Type: SourceType("github"),
+		Path: t.TempDir(),
+	})
+	assertErrorCode(t, err, rcerr.CodeInvalidSource)
+}
+
 func TestLocalRepositoryProviderRejectsMissingPath(t *testing.T) {
 	provider := NewLocalRepositoryProvider()
 
@@ -71,9 +93,7 @@ func TestLocalRepositoryProviderRejectsMissingPath(t *testing.T) {
 		Type: SourceTypeLocal,
 		Path: filepath.Join(t.TempDir(), "missing"),
 	})
-	if err == nil {
-		t.Fatal("expected missing path to fail")
-	}
+	assertErrorCode(t, err, rcerr.CodeInvalidSource)
 }
 
 func TestLocalRepositoryProviderRejectsFilePath(t *testing.T) {
@@ -88,8 +108,21 @@ func TestLocalRepositoryProviderRejectsFilePath(t *testing.T) {
 		Type: SourceTypeLocal,
 		Path: filePath,
 	})
+	assertErrorCode(t, err, rcerr.CodeInvalidSource)
+}
+
+func assertErrorCode(t *testing.T, err error, expected rcerr.ErrorCode) {
+	t.Helper()
+
 	if err == nil {
-		t.Fatal("expected file path to fail")
+		t.Fatalf("expected error code %q, got nil", expected)
+	}
+	code, ok := rcerr.CodeOf(err)
+	if !ok {
+		t.Fatalf("expected rcerr.Error, got %T: %v", err, err)
+	}
+	if code != expected {
+		t.Errorf("expected code %q, got %q", expected, code)
 	}
 }
 
