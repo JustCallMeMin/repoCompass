@@ -5,13 +5,13 @@ package config
 type Config struct {
 	// Excludes specifies glob patterns of files/directories to ignore.
 	// We use the slice itself to determine presence (nil vs empty vs populated).
-	Excludes []string
+	Excludes []string `yaml:"excludes,omitempty"`
 
 	// MaxFileSizeBytes specifies the maximum size of a file to be analyzed.
-	MaxFileSizeBytes *int64
+	MaxFileSizeBytes *int64 `yaml:"maxFilesizeBytes,omitempty"`
 
 	// EnableDefaultAnalyzers determines whether built-in analyzers should run.
-	EnableDefaultAnalyzers *bool
+	EnableDefaultAnalyzers *bool `yaml:"enableDefaultAnalyzers,omitempty"`
 }
 
 // EffectiveConfiguration represents the final resolved configuration for a scan.
