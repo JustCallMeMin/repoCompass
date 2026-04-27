@@ -31,11 +31,6 @@ func TestPlaceholderCommandsReturnExpectedMessages(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "scan placeholder",
-			args:     []string{"scan"},
-			expected: "scan is not implemented yet.\n",
-		},
-		{
 			name:     "report placeholder",
 			args:     []string{"report"},
 			expected: "report is not implemented yet.\n",

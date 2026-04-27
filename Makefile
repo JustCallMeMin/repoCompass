@@ -1,10 +1,11 @@
-.PHONY: help fmt vet test migrate-up migrate-down migrate-status db-up db-down
+.PHONY: help fmt vet test test-postgres migrate-up migrate-down migrate-status db-up db-down
 
 help:
 	@printf "Available targets:\n"
 	@printf "  make fmt\n"
 	@printf "  make vet\n"
 	@printf "  make test\n"
+	@printf "  make test-postgres\n"
 	@printf "  make migrate-up\n"
 	@printf "  make migrate-down\n"
 	@printf "  make migrate-status\n"
@@ -19,6 +20,9 @@ vet:
 
 test:
 	./backend/scripts/dev/test.sh
+
+test-postgres:
+	sh ./backend/scripts/dev/test-postgres.sh
 
 migrate-up:
 	./backend/scripts/dev/migrate-up.sh

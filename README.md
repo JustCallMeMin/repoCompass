@@ -34,6 +34,7 @@ The project is still in its initial setup phase. Start by reviewing the current 
 
 - [docs/structure.md](./docs/structure.md): Initial repository and backend directory structure
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
+- [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Developer-facing scan lifecycle guide
 - [backend/db/README.md](./backend/db/README.md): Database directory usage guide
 - [backend/.env.example](./backend/.env.example): Local backend and database environment template
 
@@ -96,6 +97,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 
 - [docs/structure.md](./docs/structure.md): Repository and backend structure reference
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
+- [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Core scan lifecycle and state reference
 - [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
 - [backend/.env.example](./backend/.env.example): Local environment variable template
 
