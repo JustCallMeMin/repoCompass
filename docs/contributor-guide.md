@@ -12,6 +12,7 @@ Before making changes, review these documents:
 
 - [README.md](../README.md): Project overview and basic local setup
 - [docs/structure.md](./structure.md): Repository and backend structure reference
+- [docs/finding-taxonomy.md](./finding-taxonomy.md): Finding, evidence, and recommendation taxonomy
 
 ## Repository Layout
 
