@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres migrate-up migrate-down migrate-status db-up db-down
+.PHONY: help fmt vet test test-postgres migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status
 
 help:
 	@printf "Available targets:\n"
@@ -11,6 +11,9 @@ help:
 	@printf "  make migrate-status\n"
 	@printf "  make db-up\n"
 	@printf "  make db-down\n"
+	@printf "  make db-reset\n"
+	@printf "  make db-seed\n"
+	@printf "  make db-status\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -38,3 +41,12 @@ db-up:
 
 db-down:
 	./backend/scripts/dev/db-down.sh
+
+db-reset:
+	./backend/scripts/dev/db-reset.sh
+
+db-seed:
+	./backend/scripts/dev/db-seed.sh
+
+db-status:
+	./backend/scripts/dev/db-status.sh

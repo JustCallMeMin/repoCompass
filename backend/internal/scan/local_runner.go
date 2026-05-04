@@ -137,21 +137,6 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 		slog.String("repository_name", resolution.Repository.Name),
 	)
 
-	// Persist repository (upsert — safe to call on repeat scans of same repo).
-	if err := r.store.SaveRepository(ctx, resolution.Repository); err != nil {
-		s.ErrorDetails = err.Error()
-		_ = s.TransitionTo(StatusFailed)
-		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to persist repository", err)
-		l.ErrorContext(ctx, "scan failed",
-			slog.String("operation", "scan_failed"),
-			slog.String("repository_id", resolution.Repository.ID),
-			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
-			slog.String("error_msg", err.Error()),
-			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
-		)
-		return RunResult{Scan: s}, wrapped
-	}
-
 	// 2. Create Snapshot
 	snap, err := r.creator.Create(ctx, snapshot.CreateRequest{
 		Repository:       resolution.Repository,
@@ -180,38 +165,6 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 		slog.String("snapshot_id", snap.ID),
 		slog.String("repository_id", resolution.Repository.ID),
 	)
-
-	// Persist snapshot.
-	if err := r.store.SaveSnapshot(ctx, snap); err != nil {
-		s.ErrorDetails = err.Error()
-		_ = s.TransitionTo(StatusFailed)
-		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to persist snapshot", err)
-		l.ErrorContext(ctx, "scan failed",
-			slog.String("operation", "scan_failed"),
-			slog.String("repository_id", resolution.Repository.ID),
-			slog.String("snapshot_id", snap.ID),
-			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
-			slog.String("error_msg", err.Error()),
-			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
-		)
-		return RunResult{Scan: s}, wrapped
-	}
-
-	// Persist scan (initial running state).
-	if err := r.store.SaveScan(ctx, s); err != nil {
-		s.ErrorDetails = err.Error()
-		_ = s.TransitionTo(StatusFailed)
-		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to persist scan", err)
-		l.ErrorContext(ctx, "scan failed",
-			slog.String("operation", "scan_failed"),
-			slog.String("repository_id", resolution.Repository.ID),
-			slog.String("snapshot_id", snap.ID),
-			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
-			slog.String("error_msg", err.Error()),
-			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
-		)
-		return RunResult{Scan: s}, wrapped
-	}
 
 	// 3. Execute analyzers.
 	analyzerResults, err := r.runAnalyzers(ctx, analyzer.Input{
@@ -271,27 +224,7 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 	endTime := time.Now()
 	s.EndTime = &endTime
 
-	// Persist final scan state.
-	if err := r.store.UpdateScan(ctx, s); err != nil {
-		l.ErrorContext(ctx, "failed to update scan in store",
-			slog.String("operation", "scan_completed"),
-			slog.String("repository_id", resolution.Repository.ID),
-			slog.String("snapshot_id", snap.ID),
-			slog.String("error_msg", err.Error()),
-		)
-		// UpdateScan failure after a successful scan is surfaced as a scan error.
-		return RunResult{Scan: s}, rcerr.New(rcerr.CodeScanExecutionFailed, "failed to update scan record", err)
-	}
-
-	l.InfoContext(ctx, "scan completed",
-		slog.String("operation", "scan_completed"),
-		slog.String("repository_id", resolution.Repository.ID),
-		slog.String("snapshot_id", snap.ID),
-		slog.String("status", string(StatusCompleted)),
-		slog.Int64("duration_ms", endTime.Sub(start).Milliseconds()),
-	)
-
-	return RunResult{
+	result := RunResult{
 		Scan:       s,
 		Repository: resolution.Repository,
 		Snapshot:   snap,
@@ -303,7 +236,33 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 		EffectiveConfig: effConfig,
 		AnalyzerResults: analyzerResults,
 		Assessment:      scanAssessment,
-	}, nil
+	}
+
+	if err := r.store.SaveRunResult(ctx, result); err != nil {
+		s.ErrorDetails = err.Error()
+		s.Status = StatusFailed
+		result.Scan = s
+		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to persist scan result", err)
+		l.ErrorContext(ctx, "scan failed",
+			slog.String("operation", "scan_failed"),
+			slog.String("repository_id", resolution.Repository.ID),
+			slog.String("snapshot_id", snap.ID),
+			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
+			slog.String("error_msg", err.Error()),
+			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+		)
+		return result, wrapped
+	}
+
+	l.InfoContext(ctx, "scan completed",
+		slog.String("operation", "scan_completed"),
+		slog.String("repository_id", resolution.Repository.ID),
+		slog.String("snapshot_id", snap.ID),
+		slog.String("status", string(StatusCompleted)),
+		slog.Int64("duration_ms", endTime.Sub(start).Milliseconds()),
+	)
+
+	return result, nil
 }
 
 // runAnalyzers executes selected analyzers sequentially and isolates analyzer-level failures.

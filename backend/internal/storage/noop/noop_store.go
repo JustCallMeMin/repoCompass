@@ -39,3 +39,8 @@ func (s *Store) SaveScan(_ context.Context, _ scan.Scan) error {
 func (s *Store) UpdateScan(_ context.Context, _ scan.Scan) error {
 	return nil
 }
+
+// SaveRunResult is a no-op.
+func (s *Store) SaveRunResult(_ context.Context, _ scan.RunResult) error {
+	return nil
+}

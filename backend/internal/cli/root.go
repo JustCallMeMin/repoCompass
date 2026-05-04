@@ -11,6 +11,8 @@ func NewRootCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		newScanCmd(),
+		newHistoryCmd(),
+		newFindingsCmd(),
 		newReportCmd(),
 		newDoctorCmd(),
 	)

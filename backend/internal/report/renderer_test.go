@@ -206,7 +206,9 @@ func assertGolden(t *testing.T, filename string, got []byte) {
 	if err != nil {
 		t.Fatalf("read golden file %s: %v", path, err)
 	}
-	if string(got) != string(want) {
-		t.Fatalf("golden mismatch for %s\n--- got ---\n%s\n--- want ---\n%s", filename, string(got), string(want))
+	gotText := strings.ReplaceAll(string(got), "\r\n", "\n")
+	wantText := strings.ReplaceAll(string(want), "\r\n", "\n")
+	if gotText != wantText {
+		t.Fatalf("golden mismatch for %s\n--- got ---\n%s\n--- want ---\n%s", filename, gotText, wantText)
 	}
 }
