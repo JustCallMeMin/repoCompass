@@ -4,7 +4,7 @@
 //
 // To run manually:
 //
-//	export DATABASE_URL="postgres://postgres:postgres@localhost:5432/repocompass?sslmode=disable"
+//	export DATABASE_URL="postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable"
 //	go test ./internal/storage/postgres/...
 package postgres_test
 
@@ -16,7 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/analyzer"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
 	pgstore "github.com/JustCallMeMin/repoCompass/backend/internal/storage/postgres"
@@ -50,7 +54,21 @@ func TestPostgresStore_CoreTablesExist(t *testing.T) {
 	db := openDBConn(t)
 	ctx := context.Background()
 
-	for _, tableName := range []string{"repositories", "repository_snapshots", "scans"} {
+	for _, tableName := range []string{
+		"repositories",
+		"repository_snapshots",
+		"scans",
+		"rule_sets",
+		"rules",
+		"rule_set_rules",
+		"analyzer_results",
+		"findings",
+		"finding_evidences",
+		"recommendations",
+		"assessments",
+		"metric_snapshots",
+		"reports",
+	} {
 		var exists bool
 		err := db.QueryRowContext(ctx, `
 SELECT EXISTS (
@@ -212,4 +230,127 @@ func TestPostgresStore_ForeignKeyFailures(t *testing.T) {
 	if err := store.SaveScan(ctx, s); err == nil {
 		t.Fatal("expected SaveScan to fail when snapshot_id does not exist")
 	}
+}
+
+func TestPostgresStore_SaveRunResultPersistsAnalysisRows(t *testing.T) {
+	db := openDBConn(t)
+	store := pgstore.New(db)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	repoID := testID("test-repo-result")
+	scanID := testID("test-scan-result")
+	snapshotID := testID("test-snap-result")
+	findingID := testID("test-finding-result")
+	finding := findings.NewFinding(
+		findingID,
+		"readme.exists",
+		"readme",
+		rules.SeverityHigh,
+		rules.CategoryDocumentation,
+		"README missing",
+		"Repository root has no README.",
+		[]findings.Evidence{
+			findings.NewEvidence(findings.EvidenceTypeFileMissing, "README.md missing.", "README.md", ""),
+		},
+	)
+	finding.Recommendations = []findings.Recommendation{
+		findings.NewRecommendation(findingID, "Add README", "Create README.md.", "Contributors need orientation.", findings.RecommendationPriorityHigh),
+	}
+	result := scan.RunResult{
+		Repository: repository.Repository{
+			ID:       repoID,
+			Name:     "result-repo",
+			FullName: "alice/result-repo",
+			Provider: repository.ProviderLocal,
+			Status:   repository.StatusActive,
+		},
+		Snapshot: snapshot.RepositorySnapshot{
+			ID:           snapshotID,
+			RepositoryID: repoID,
+			SourceType:   snapshot.SourceTypeLocal,
+			CapturedAt:   now,
+		},
+		Scan: scan.Scan{
+			ID:         scanID,
+			SnapshotID: snapshotID,
+			Status:     scan.StatusCompleted,
+			StartTime:  &now,
+			EndTime:    ptrTime(now.Add(time.Second)),
+		},
+		AnalyzerResults: []analyzer.AnalyzerResult{
+			{
+				AnalyzerID: "readme",
+				Name:       "README Analyzer",
+				Version:    "0.1.0",
+				Status:     analyzer.AnalyzerStatusSuccess,
+				Findings:   []findings.Finding{finding},
+				Metadata:   map[string]string{"readme_present": "false"},
+			},
+		},
+		Assessment: assessment.Assessment{
+			OverallScore:   75,
+			Label:          assessment.ScoreLabelGood,
+			FindingCount:   1,
+			SeverityCounts: map[rules.Severity]int{rules.SeverityHigh: 1},
+			CategoryScores: map[rules.Category]int{rules.CategoryDocumentation: 75},
+		},
+	}
+
+	if err := store.SaveRunResult(ctx, result); err != nil {
+		t.Fatalf("SaveRunResult: %v", err)
+	}
+
+	counts := map[string]int{}
+	for _, query := range []struct {
+		name string
+		sql  string
+	}{
+		{"analyzer_results", `SELECT COUNT(*) FROM analyzer_results WHERE scan_id = $1`},
+		{"findings", `SELECT COUNT(*) FROM findings WHERE scan_id = $1`},
+		{"assessments", `SELECT COUNT(*) FROM assessments WHERE scan_id = $1`},
+		{"metrics", `SELECT COUNT(*) FROM metric_snapshots WHERE scan_id = $1`},
+		{"reports", `SELECT COUNT(*) FROM reports WHERE scan_id = $1`},
+	} {
+		var count int
+		if err := db.QueryRowContext(ctx, query.sql, scanID).Scan(&count); err != nil {
+			t.Fatalf("query %s count: %v", query.name, err)
+		}
+		counts[query.name] = count
+	}
+	if counts["analyzer_results"] != 1 || counts["findings"] != 1 || counts["assessments"] != 1 {
+		t.Fatalf("unexpected core analysis counts: %v", counts)
+	}
+	if counts["metrics"] < 2 {
+		t.Fatalf("expected metric snapshots, got counts: %v", counts)
+	}
+	if counts["reports"] != 2 {
+		t.Fatalf("expected markdown/json report metadata rows, got counts: %v", counts)
+	}
+
+	historyItems, err := store.ListScanHistory(ctx, repoID, 10)
+	if err != nil {
+		t.Fatalf("ListScanHistory: %v", err)
+	}
+	if len(historyItems) == 0 || historyItems[0].ScanID != scanID {
+		t.Fatalf("expected scan %q in history, got %+v", scanID, historyItems)
+	}
+	findingItems, err := store.ListFindings(ctx, scanID)
+	if err != nil {
+		t.Fatalf("ListFindings: %v", err)
+	}
+	if len(findingItems) != 1 || len(findingItems[0].Evidence) != 1 || len(findingItems[0].Recommendations) != 1 {
+		t.Fatalf("expected finding evidence and recommendation, got %+v", findingItems)
+	}
+	metricPoints, err := store.ListMetricTrend(ctx, repoID, "assessment.overall_score", 10)
+	if err != nil {
+		t.Fatalf("ListMetricTrend: %v", err)
+	}
+	if len(metricPoints) == 0 || metricPoints[0].Value != 75 {
+		t.Fatalf("expected assessment score metric, got %+v", metricPoints)
+	}
+}
+
+func ptrTime(value time.Time) *time.Time {
+	return &value
 }

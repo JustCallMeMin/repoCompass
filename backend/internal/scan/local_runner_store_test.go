@@ -44,6 +44,9 @@ func (f *fakeStore) SaveScan(_ context.Context, _ scan.Scan) error {
 func (f *fakeStore) UpdateScan(_ context.Context, _ scan.Scan) error {
 	return f.record("UpdateScan")
 }
+func (f *fakeStore) SaveRunResult(_ context.Context, _ scan.RunResult) error {
+	return f.record("SaveRunResult")
+}
 
 func (f *fakeStore) assertCallOrder(t *testing.T, expected []string) {
 	t.Helper()
@@ -60,8 +63,8 @@ func (f *fakeStore) assertCallOrder(t *testing.T, expected []string) {
 	}
 }
 
-// TestLocalScanRunner_PersistsInOrder verifies the runner calls the store
-// in the correct lifecycle sequence on a successful scan.
+// TestLocalScanRunner_PersistsInOrder verifies the runner stores the completed
+// scan result as one persistence unit.
 func TestLocalScanRunner_PersistsInOrder(t *testing.T) {
 	tempDir := t.TempDir()
 	store := newFakeStore()
@@ -84,19 +87,16 @@ func TestLocalScanRunner_PersistsInOrder(t *testing.T) {
 	}
 
 	store.assertCallOrder(t, []string{
-		"SaveRepository",
-		"SaveSnapshot",
-		"SaveScan",
-		"UpdateScan",
+		"SaveRunResult",
 	})
 }
 
-// TestLocalScanRunner_StoreFailurePropagatesToScan verifies that a store failure
-// causes the scan to fail with a non-zero error.
-func TestLocalScanRunner_SaveRepositoryFailureFails(t *testing.T) {
+// TestLocalScanRunner_SaveRunResultFailureFails verifies that a final
+// persistence failure causes the scan to fail with a non-zero error.
+func TestLocalScanRunner_SaveRunResultFailureFails(t *testing.T) {
 	tempDir := t.TempDir()
 	store := newFakeStore()
-	store.failOn = "SaveRepository"
+	store.failOn = "SaveRunResult"
 
 	provider := repository.NewLocalRepositoryProvider()
 	creator := snapshot.NewCreator()
@@ -116,30 +116,5 @@ func TestLocalScanRunner_SaveRepositoryFailureFails(t *testing.T) {
 	}
 	if result.Scan.Status != scan.StatusFailed {
 		t.Errorf("expected scan status %q, got %q", scan.StatusFailed, result.Scan.Status)
-	}
-}
-
-// TestLocalScanRunner_UpdateScanFailurePropagates verifies that a failure in
-// UpdateScan (the final step) surfaces as an error even when scan execution succeeded.
-func TestLocalScanRunner_UpdateScanFailurePropagates(t *testing.T) {
-	tempDir := t.TempDir()
-	store := newFakeStore()
-	store.failOn = "UpdateScan"
-
-	provider := repository.NewLocalRepositoryProvider()
-	creator := snapshot.NewCreator()
-	resolver := config.NewLocalConfigurationResolver()
-	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store, emptyRegistry(t))
-
-	req := scan.RunRequest{
-		Source: repository.RepositorySource{
-			Type: repository.SourceTypeLocal,
-			Path: tempDir,
-		},
-	}
-
-	_, err := runner.Run(context.Background(), req)
-	if err == nil {
-		t.Fatal("expected error from UpdateScan failure, got nil")
 	}
 }

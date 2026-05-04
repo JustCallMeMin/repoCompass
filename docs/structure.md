@@ -16,6 +16,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `docs/finding-taxonomy.md`: Contributor-facing taxonomy for findings, evidence, and recommendations.
 - `docs/report-format.md`: Planned Markdown and JSON report format contract.
 - `docs/scan-lifecycle.md`: Developer-facing scan lifecycle guide for the core scan engine.
+- `docs/persistence-history.md`: PostgreSQL persistence and scan history workflow.
 
 ## Backend Directory Layout
 
@@ -27,6 +28,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/internal/cli/`: CLI command wiring for the `repocompass` executable.
 - `backend/internal/config/`: Configuration loading and configuration models.
 - `backend/internal/integration/`: External integration boundaries.
+- `backend/internal/history/`: Read models for persisted scan history and finding details.
 - `backend/internal/repository/`: Data access layer and persistence-facing code.
 - `backend/internal/report/`: Report generation building blocks and output shaping.
 - `backend/internal/rules/`: Rule evaluation and rule definitions.

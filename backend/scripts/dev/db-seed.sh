@@ -11,14 +11,6 @@ if [ "${DATABASE_URL:-}" = "" ]; then
   exit 1
 fi
 
-cleanup() {
-  if [ "${POSTGRES_TEST_ROLLBACK:-}" = "1" ]; then
-    "$SCRIPT_DIR/migrate-down.sh" -all >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup EXIT
-
-"$SCRIPT_DIR/migrate-up.sh"
-
 cd "$BACKEND_DIR"
-go test ./internal/storage/postgres/...
+go run ./cmd/repocompass scan ./testdata/fixtures/local-repositories/missing-readme-repo --persist
+go run ./cmd/repocompass scan ./testdata/fixtures/local-repositories/good-onboarding-repo --persist

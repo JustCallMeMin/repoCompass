@@ -125,6 +125,7 @@ func newScanCmd() *cobra.Command {
 
 			fmt.Fprintln(cmd.OutOrStdout(), "\nScan Summary:")
 			fmt.Fprintf(cmd.OutOrStdout(), "  Scan ID:      %s\n", result.Scan.ID)
+			fmt.Fprintf(cmd.OutOrStdout(), "  Repository ID: %s\n", result.Repository.ID)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Snapshot ID:  %s\n", result.Scan.SnapshotID)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Status:       %s\n", result.Scan.Status)
 			fmt.Fprintf(cmd.OutOrStdout(), "  Analyzers:    %d\n", result.Summary.AnalyzersProcessed)

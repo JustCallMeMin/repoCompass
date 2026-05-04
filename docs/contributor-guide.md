@@ -15,6 +15,7 @@ Before making changes, review these documents:
 - [docs/analyzer-contract.md](./analyzer-contract.md): Contributor-facing analyzer contract
 - [docs/finding-taxonomy.md](./finding-taxonomy.md): Finding, evidence, and recommendation taxonomy
 - [docs/report-format.md](./report-format.md): Planned Markdown and JSON report formats
+- [docs/persistence-history.md](./persistence-history.md): PostgreSQL persistence and history workflow
 
 ## Repository Layout
 
@@ -73,6 +74,9 @@ For local database workflow, copy `backend/.env.example` to `backend/.env` and u
 - `make migrate-status`
 - `make migrate-up`
 - `make migrate-down`
+- `make db-reset`
+- `make db-seed`
+- `make db-status`
 
 The underlying scripts under `backend/scripts/dev/` still remain available and continue to auto-load `backend/.env` when it exists.
 

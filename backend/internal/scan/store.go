@@ -23,4 +23,7 @@ type Store interface {
 
 	// UpdateScan updates mutable scan fields (status, end_time, error_details).
 	UpdateScan(ctx context.Context, s Scan) error
+
+	// SaveRunResult persists the completed scan result as one logical unit.
+	SaveRunResult(ctx context.Context, result RunResult) error
 }

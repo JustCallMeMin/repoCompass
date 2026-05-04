@@ -48,7 +48,7 @@ Expected setup:
 Example environment variable:
 
 ```bash
-export DATABASE_URL='postgres://user:pass@localhost:5432/repocompass?sslmode=disable'
+export DATABASE_URL='postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable'
 ```
 
 You can also store local values in `backend/.env` by copying `backend/.env.example`.
@@ -66,7 +66,8 @@ This starts a PostgreSQL service with these defaults:
 - database: `repocompass`
 - user: `postgres`
 - password: `postgres`
-- port: `5432`
+- host port: `55432`
+- container port: `5432`
 
 To stop the local database:
 
