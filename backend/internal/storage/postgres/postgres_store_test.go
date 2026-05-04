@@ -4,7 +4,7 @@
 //
 // To run manually:
 //
-//	export DATABASE_URL="postgres://postgres:postgres@localhost:5432/repocompass?sslmode=disable"
+//	export DATABASE_URL="postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable"
 //	go test ./internal/storage/postgres/...
 package postgres_test
 

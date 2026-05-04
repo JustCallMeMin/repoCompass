@@ -10,7 +10,7 @@ Start Dockerized PostgreSQL, apply migrations, run a persisted scan, then query 
 
 ```powershell
 make db-up
-$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/repocompass?sslmode=disable"
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable"
 make migrate-up
 cd backend
 go run ./cmd/repocompass scan ./testdata/fixtures/local-repositories/good-onboarding-repo --persist
