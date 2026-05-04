@@ -3,16 +3,19 @@ package analyzer
 
 import (
 	"context"
+	"time"
 
 	"github.com/JustCallMeMin/repoCompass/backend/internal/config"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
 )
 
 // Analyzer inspects a repository snapshot and returns structured analyzer output.
 type Analyzer interface {
-	Metadata() Metadata
-	Analyze(ctx context.Context, input Input) (Result, error)
+	Metadata() AnalyzerMetadata
+	Analyze(ctx context.Context, input Input) (AnalyzerResult, error)
 }
 
 // Input contains read-only scan context passed to an analyzer.
@@ -20,25 +23,33 @@ type Input struct {
 	Repository             repository.Repository
 	Snapshot               snapshot.RepositorySnapshot
 	EffectiveConfiguration config.EffectiveConfiguration
+	RuleSet                rules.RuleSet
 }
 
-// Metadata identifies an analyzer in reports, logs, and registries.
-type Metadata struct {
+// AnalyzerMetadata identifies an analyzer in reports, logs, and registries.
+type AnalyzerMetadata struct {
 	ID      string
 	Name    string
 	Version string
 }
 
-// Result contains the output produced by one analyzer execution.
-type Result struct {
-	AnalyzerID string
-	Metadata   map[string]string
-	Findings   []Finding
-}
+// AnalyzerStatus describes the outcome of one analyzer execution.
+type AnalyzerStatus string
 
-// Finding is the minimal issue shape returned by analyzers in T2-004.
-type Finding struct {
-	RuleID  string
-	Title   string
-	Message string
+const (
+	AnalyzerStatusSuccess AnalyzerStatus = "success"
+	AnalyzerStatusSkipped AnalyzerStatus = "skipped"
+	AnalyzerStatusFailed  AnalyzerStatus = "failed"
+)
+
+// AnalyzerResult contains the output produced by one analyzer execution.
+type AnalyzerResult struct {
+	AnalyzerID   string
+	Name         string
+	Version      string
+	Status       AnalyzerStatus
+	Duration     time.Duration
+	Findings     []findings.Finding
+	Metadata     map[string]string
+	ErrorMessage string
 }

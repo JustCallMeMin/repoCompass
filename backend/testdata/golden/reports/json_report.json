@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "repository": {
+    "id": "repo_123",
+    "name": "example",
+    "provider": "local",
+    "url": "file:///repo/example",
+    "default_branch": "main"
+  },
+  "scan": {
+    "id": "scan_123",
+    "snapshot_id": "snap_123",
+    "status": "completed",
+    "started_at": "2026-05-01T01:00:00Z",
+    "completed_at": "2026-05-01T01:00:02Z"
+  },
+  "assessment": {
+    "overall_score": 75,
+    "label": "good",
+    "finding_count": 1,
+    "severity_counts": {
+      "high": 1
+    },
+    "category_scores": {
+      "documentation": 75
+    }
+  },
+  "analyzers": [
+    {
+      "id": "readme",
+      "name": "README Analyzer",
+      "version": "0.1.0",
+      "status": "success",
+      "duration_ms": 0,
+      "findings_count": 1
+    }
+  ],
+  "findings": [
+    {
+      "id": "finding_readme",
+      "rule_id": "readme.exists",
+      "analyzer_id": "readme",
+      "severity": "high",
+      "title": "README file is missing",
+      "message": "The repository does not contain a README file at its root.",
+      "category": "documentation",
+      "status": "open",
+      "evidence": [
+        {
+          "type": "file_missing",
+          "message": "README.md was not found at the repository root.",
+          "path": "README.md"
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    {
+      "finding_id": "finding_readme",
+      "title": "Add a root README",
+      "action": "Create README.md with project purpose, setup steps, and test commands.",
+      "rationale": "New contributors need one stable entry point before changing code.",
+      "priority": "high"
+    }
+  ],
+  "metadata": {
+    "format": "json",
+    "generated_at": "2026-05-01T01:02:03Z",
+    "repocompass_version": "unknown"
+  }
+}

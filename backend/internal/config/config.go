@@ -12,6 +12,18 @@ type Config struct {
 
 	// EnableDefaultAnalyzers determines whether built-in analyzers should run.
 	EnableDefaultAnalyzers *bool `yaml:"enableDefaultAnalyzers,omitempty"`
+
+	// EnabledRules lists rule IDs that should be enabled.
+	EnabledRules []string `yaml:"enabledRules,omitempty"`
+
+	// DisabledRules lists rule IDs that should be disabled.
+	DisabledRules []string `yaml:"disabledRules,omitempty"`
+
+	// EnabledAnalyzers lists analyzer IDs that should be enabled.
+	EnabledAnalyzers []string `yaml:"enabledAnalyzers,omitempty"`
+
+	// DisabledAnalyzers lists analyzer IDs that should be disabled.
+	DisabledAnalyzers []string `yaml:"disabledAnalyzers,omitempty"`
 }
 
 // EffectiveConfiguration represents the final resolved configuration for a scan.
@@ -20,6 +32,10 @@ type EffectiveConfiguration struct {
 	Excludes               []string
 	MaxFileSizeBytes       int64
 	EnableDefaultAnalyzers bool
+	EnabledRules           []string
+	DisabledRules          []string
+	EnabledAnalyzers       []string
+	DisabledAnalyzers      []string
 }
 
 // Resolve merges a slice of Config objects into a single EffectiveConfiguration.
@@ -38,6 +54,18 @@ func Resolve(configs []Config) EffectiveConfiguration {
 		}
 		if cfg.EnableDefaultAnalyzers != nil {
 			effective.EnableDefaultAnalyzers = *cfg.EnableDefaultAnalyzers
+		}
+		if cfg.EnabledRules != nil {
+			effective.EnabledRules = cfg.EnabledRules
+		}
+		if cfg.DisabledRules != nil {
+			effective.DisabledRules = cfg.DisabledRules
+		}
+		if cfg.EnabledAnalyzers != nil {
+			effective.EnabledAnalyzers = cfg.EnabledAnalyzers
+		}
+		if cfg.DisabledAnalyzers != nil {
+			effective.DisabledAnalyzers = cfg.DisabledAnalyzers
 		}
 	}
 

@@ -76,6 +76,7 @@ func (p LocalRepositoryProvider) Resolve(ctx context.Context, source RepositoryS
 			Name:          repositoryName,
 			FullName:      repositoryName,
 			URL:           (&url.URL{Scheme: "file", Path: absolutePath}).String(),
+			LocalPath:     absolutePath,
 			Provider:      ProviderLocal,
 			DefaultBranch: defaultBranch,
 			Status:        StatusActive,

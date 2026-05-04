@@ -44,6 +44,10 @@ func TestResolve(t *testing.T) {
 				Excludes:               nil,
 				MaxFileSizeBytes:       0,
 				EnableDefaultAnalyzers: false,
+				EnabledRules:           nil,
+				DisabledRules:          nil,
+				EnabledAnalyzers:       nil,
+				DisabledAnalyzers:      nil,
 			},
 		},
 		{
@@ -53,12 +57,20 @@ func TestResolve(t *testing.T) {
 					Excludes:               []string{"*.log"},
 					MaxFileSizeBytes:       &defaultMaxFileSize,
 					EnableDefaultAnalyzers: &defaultEnable,
+					EnabledRules:           []string{"readme.exists"},
+					DisabledRules:          []string{"ci.workflow.exists"},
+					EnabledAnalyzers:       []string{"readme"},
+					DisabledAnalyzers:      []string{"ci"},
 				},
 			},
 			want: EffectiveConfiguration{
 				Excludes:               []string{"*.log"},
 				MaxFileSizeBytes:       defaultMaxFileSize,
 				EnableDefaultAnalyzers: defaultEnable,
+				EnabledRules:           []string{"readme.exists"},
+				DisabledRules:          []string{"ci.workflow.exists"},
+				EnabledAnalyzers:       []string{"readme"},
+				DisabledAnalyzers:      []string{"ci"},
 			},
 		},
 		{
@@ -69,18 +81,30 @@ func TestResolve(t *testing.T) {
 					Excludes:               []string{"*.log"},
 					MaxFileSizeBytes:       &defaultMaxFileSize,
 					EnableDefaultAnalyzers: &defaultEnable,
+					EnabledRules:           []string{"readme.exists"},
+					DisabledRules:          []string{"ci.workflow.exists"},
+					EnabledAnalyzers:       []string{"readme"},
+					DisabledAnalyzers:      []string{"ci"},
 				},
 				{
 					// CLI overrides
 					Excludes:               []string{"vendor/*", "*.tmp"},
 					MaxFileSizeBytes:       &cliMaxFileSize,
 					EnableDefaultAnalyzers: &cliEnable,
+					EnabledRules:           []string{"contributing.exists"},
+					DisabledRules:          []string{},
+					EnabledAnalyzers:       []string{"contributing"},
+					DisabledAnalyzers:      []string{},
 				},
 			},
 			want: EffectiveConfiguration{
 				Excludes:               []string{"vendor/*", "*.tmp"},
 				MaxFileSizeBytes:       cliMaxFileSize,
 				EnableDefaultAnalyzers: cliEnable,
+				EnabledRules:           []string{"contributing.exists"},
+				DisabledRules:          []string{},
+				EnabledAnalyzers:       []string{"contributing"},
+				DisabledAnalyzers:      []string{},
 			},
 		},
 		{
@@ -90,6 +114,7 @@ func TestResolve(t *testing.T) {
 					Excludes:               []string{"*.log"},
 					MaxFileSizeBytes:       &defaultMaxFileSize,
 					EnableDefaultAnalyzers: &defaultEnable,
+					EnabledRules:           []string{"readme.exists"},
 				},
 				{
 					// Only override MaxFileSizeBytes
@@ -100,6 +125,7 @@ func TestResolve(t *testing.T) {
 				Excludes:               []string{"*.log"},
 				MaxFileSizeBytes:       cliMaxFileSize,
 				EnableDefaultAnalyzers: defaultEnable,
+				EnabledRules:           []string{"readme.exists"},
 			},
 		},
 		{
@@ -114,6 +140,29 @@ func TestResolve(t *testing.T) {
 			},
 			want: EffectiveConfiguration{
 				Excludes: []string{},
+			},
+		},
+		{
+			name: "empty rule and analyzer slices override populated slices",
+			configs: []Config{
+				{
+					EnabledRules:      []string{"readme.exists"},
+					DisabledRules:     []string{"ci.workflow.exists"},
+					EnabledAnalyzers:  []string{"readme"},
+					DisabledAnalyzers: []string{"ci"},
+				},
+				{
+					EnabledRules:      []string{},
+					DisabledRules:     []string{},
+					EnabledAnalyzers:  []string{},
+					DisabledAnalyzers: []string{},
+				},
+			},
+			want: EffectiveConfiguration{
+				EnabledRules:      []string{},
+				DisabledRules:     []string{},
+				EnabledAnalyzers:  []string{},
+				DisabledAnalyzers: []string{},
 			},
 		},
 	}
