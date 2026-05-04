@@ -12,6 +12,9 @@ The repository is organized as a multi-area project, with the backend implementa
 - `frontend/`: Reserved for frontend application code.
 - `deployments/`: Reserved for deployment-related manifests and environment setup.
 - `docs/`: Project documentation written in English.
+- `docs/analyzer-contract.md`: Contributor-facing contract for future analyzer implementations.
+- `docs/finding-taxonomy.md`: Contributor-facing taxonomy for findings, evidence, and recommendations.
+- `docs/report-format.md`: Planned Markdown and JSON report format contract.
 - `docs/scan-lifecycle.md`: Developer-facing scan lifecycle guide for the core scan engine.
 
 ## Backend Directory Layout

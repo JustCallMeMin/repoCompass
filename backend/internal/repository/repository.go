@@ -47,6 +47,7 @@ type Repository struct {
 	OwnerName        string
 	FullName         string
 	URL              string
+	LocalPath        string
 	Provider         Provider
 	DefaultBranch    string
 	PrimaryEcosystem string

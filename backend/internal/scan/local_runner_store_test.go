@@ -15,8 +15,8 @@ import (
 // fakeStore records all calls made by the runner so tests can assert
 // that persistence methods are called in the correct order.
 type fakeStore struct {
-	mu   sync.Mutex
-	calls []string
+	mu     sync.Mutex
+	calls  []string
 	failOn string // if non-empty, return an error when this method is called
 }
 
@@ -69,7 +69,7 @@ func TestLocalScanRunner_PersistsInOrder(t *testing.T) {
 	provider := repository.NewLocalRepositoryProvider()
 	creator := snapshot.NewCreator()
 	resolver := config.NewLocalConfigurationResolver()
-	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store)
+	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store, emptyRegistry(t))
 
 	req := scan.RunRequest{
 		Source: repository.RepositorySource{
@@ -101,7 +101,7 @@ func TestLocalScanRunner_SaveRepositoryFailureFails(t *testing.T) {
 	provider := repository.NewLocalRepositoryProvider()
 	creator := snapshot.NewCreator()
 	resolver := config.NewLocalConfigurationResolver()
-	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store)
+	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store, emptyRegistry(t))
 
 	req := scan.RunRequest{
 		Source: repository.RepositorySource{
@@ -129,7 +129,7 @@ func TestLocalScanRunner_UpdateScanFailurePropagates(t *testing.T) {
 	provider := repository.NewLocalRepositoryProvider()
 	creator := snapshot.NewCreator()
 	resolver := config.NewLocalConfigurationResolver()
-	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store)
+	runner := scan.NewLocalScanRunner(provider, creator, resolver, discardLogger(), store, emptyRegistry(t))
 
 	req := scan.RunRequest{
 		Source: repository.RepositorySource{

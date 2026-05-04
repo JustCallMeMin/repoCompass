@@ -36,7 +36,7 @@ func TestLocalConfigurationResolver_ResolveConfig(t *testing.T) {
 
 	t.Run("defaults only", func(t *testing.T) {
 		dir := t.TempDir()
-		
+
 		got, err := resolver.ResolveConfig(ctx, dir, Config{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -55,6 +55,14 @@ excludes:
   - "override_dir"
 maxFilesizeBytes: 5000000
 enableDefaultAnalyzers: false
+enabledRules:
+  - "readme.exists"
+disabledRules:
+  - "ci.workflow.exists"
+enabledAnalyzers:
+  - "readme"
+disabledAnalyzers:
+  - "ci"
 `)
 		err := os.WriteFile(filepath.Join(dir, ".repocompass.yaml"), cfgContent, 0644)
 		if err != nil {
@@ -74,6 +82,18 @@ enableDefaultAnalyzers: false
 		}
 		if got.EnableDefaultAnalyzers != false {
 			t.Errorf("unexpected EnableDefaultAnalyzers: %v", got.EnableDefaultAnalyzers)
+		}
+		if !reflect.DeepEqual(got.EnabledRules, []string{"readme.exists"}) {
+			t.Errorf("unexpected EnabledRules: %v", got.EnabledRules)
+		}
+		if !reflect.DeepEqual(got.DisabledRules, []string{"ci.workflow.exists"}) {
+			t.Errorf("unexpected DisabledRules: %v", got.DisabledRules)
+		}
+		if !reflect.DeepEqual(got.EnabledAnalyzers, []string{"readme"}) {
+			t.Errorf("unexpected EnabledAnalyzers: %v", got.EnabledAnalyzers)
+		}
+		if !reflect.DeepEqual(got.DisabledAnalyzers, []string{"ci"}) {
+			t.Errorf("unexpected DisabledAnalyzers: %v", got.DisabledAnalyzers)
 		}
 	})
 
@@ -123,12 +143,15 @@ enableDefaultAnalyzers: false
 excludes:
   - "override_dir"
 maxFilesizeBytes: 5000000
+enabledRules:
+  - "readme.exists"
 `)
 		os.WriteFile(filepath.Join(dir, ".repocompass.yaml"), cfgContent, 0644)
 
 		cliMaxFileSize := int64(10)
 		overrides := Config{
 			MaxFileSizeBytes: &cliMaxFileSize,
+			EnabledRules:     []string{"contributing.exists"},
 		}
 
 		got, err := resolver.ResolveConfig(ctx, dir, overrides)
@@ -148,11 +171,14 @@ maxFilesizeBytes: 5000000
 		if got.MaxFileSizeBytes != 10 {
 			t.Errorf("unexpected MaxFileSizeBytes: %d", got.MaxFileSizeBytes)
 		}
+		if !reflect.DeepEqual(got.EnabledRules, []string{"contributing.exists"}) {
+			t.Errorf("unexpected EnabledRules: %v", got.EnabledRules)
+		}
 	})
 
 	t.Run("empty excludes replacement behavior", func(t *testing.T) {
 		dir := t.TempDir()
-		
+
 		overrides := Config{
 			Excludes: []string{}, // Empty slice to override defaults
 		}

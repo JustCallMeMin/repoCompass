@@ -40,11 +40,11 @@ func (r *LocalConfigurationResolver) ResolveConfig(ctx context.Context, repoPath
 	}
 
 	defaults := GetDefaults()
-	
+
 	// Check for repo configuration file
 	var fileCfg Config
 	var foundFile bool
-	
+
 	for _, filename := range []string{".repocompass.yaml", ".repocompass.yml"} {
 		configPath := filepath.Join(repoPath, filename)
 		data, err := os.ReadFile(configPath)

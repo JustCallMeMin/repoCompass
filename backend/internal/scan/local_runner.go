@@ -8,9 +8,13 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/analyzer"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/config"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
 )
 
@@ -21,6 +25,7 @@ type LocalScanRunner struct {
 	resolver config.Resolver
 	logger   *slog.Logger
 	store    Store
+	registry *analyzer.AnalyzerRegistry
 }
 
 // NewLocalScanRunner creates a new LocalScanRunner.
@@ -32,9 +37,13 @@ func NewLocalScanRunner(
 	resolver config.Resolver,
 	logger *slog.Logger,
 	store Store,
+	registry *analyzer.AnalyzerRegistry,
 ) *LocalScanRunner {
 	if logger == nil {
 		logger = slog.Default()
+	}
+	if registry == nil {
+		registry, _ = analyzer.NewAnalyzerRegistry()
 	}
 	return &LocalScanRunner{
 		provider: provider,
@@ -42,6 +51,7 @@ func NewLocalScanRunner(
 		resolver: resolver,
 		logger:   logger,
 		store:    store,
+		registry: registry,
 	}
 }
 
@@ -90,6 +100,20 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 		slog.String("operation", "config_resolve"),
 		slog.Int64("max_file_size_bytes", effConfig.MaxFileSizeBytes),
 	)
+
+	ruleSet, err := rules.ResolveRuleSet(rules.DefaultRuleSet(), effConfig)
+	if err != nil {
+		s.ErrorDetails = err.Error()
+		_ = s.TransitionTo(StatusFailed)
+		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to resolve ruleset", err)
+		l.ErrorContext(ctx, "scan failed",
+			slog.String("operation", "scan_failed"),
+			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
+			slog.String("error_msg", err.Error()),
+			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+		)
+		return RunResult{Scan: s, EffectiveConfig: effConfig}, wrapped
+	}
 
 	// 1. Resolve Repository
 	resolution, err := r.provider.Resolve(ctx, request.Source)
@@ -189,7 +213,46 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 		return RunResult{Scan: s}, wrapped
 	}
 
-	// 3. Complete Scan (no-op analysis for Milestone 1)
+	// 3. Execute analyzers.
+	analyzerResults, err := r.runAnalyzers(ctx, analyzer.Input{
+		Repository:             resolution.Repository,
+		Snapshot:               snap,
+		EffectiveConfiguration: effConfig,
+		RuleSet:                ruleSet,
+	}, effConfig, l)
+	if err != nil {
+		s.ErrorDetails = err.Error()
+		_ = s.TransitionTo(StatusFailed)
+		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to resolve analyzers", err)
+		l.ErrorContext(ctx, "scan failed",
+			slog.String("operation", "scan_failed"),
+			slog.String("repository_id", resolution.Repository.ID),
+			slog.String("snapshot_id", snap.ID),
+			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
+			slog.String("error_msg", err.Error()),
+			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+		)
+		return RunResult{Scan: s, AnalyzerResults: analyzerResults}, wrapped
+	}
+
+	allFindings := collectFindings(analyzerResults)
+	scanAssessment, err := assessment.NewEngine().Assess(allFindings)
+	if err != nil {
+		s.ErrorDetails = err.Error()
+		_ = s.TransitionTo(StatusFailed)
+		wrapped := rcerr.New(rcerr.CodeScanExecutionFailed, "failed to assess scan findings", err)
+		l.ErrorContext(ctx, "scan failed",
+			slog.String("operation", "scan_failed"),
+			slog.String("repository_id", resolution.Repository.ID),
+			slog.String("snapshot_id", snap.ID),
+			slog.String("error_id", string(rcerr.CodeScanExecutionFailed)),
+			slog.String("error_msg", err.Error()),
+			slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+		)
+		return RunResult{Scan: s, AnalyzerResults: analyzerResults}, wrapped
+	}
+
+	// 4. Complete Scan.
 	if err := s.TransitionTo(StatusCompleted); err != nil {
 		s.ErrorDetails = err.Error()
 		_ = s.TransitionTo(StatusFailed)
@@ -229,12 +292,86 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 	)
 
 	return RunResult{
-		Scan: s,
+		Scan:       s,
+		Repository: resolution.Repository,
+		Snapshot:   snap,
 		Summary: Summary{
-			AnalyzersProcessed: 0,
+			AnalyzersProcessed: len(analyzerResults),
+			FindingCount:       len(allFindings),
+			AssessmentScore:    scanAssessment.OverallScore,
 		},
 		EffectiveConfig: effConfig,
+		AnalyzerResults: analyzerResults,
+		Assessment:      scanAssessment,
 	}, nil
+}
+
+// runAnalyzers executes selected analyzers sequentially and isolates analyzer-level failures.
+func (r *LocalScanRunner) runAnalyzers(
+	ctx context.Context,
+	input analyzer.Input,
+	effConfig config.EffectiveConfiguration,
+	logger *slog.Logger,
+) ([]analyzer.AnalyzerResult, error) {
+	selected, err := r.registry.Resolve(effConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]analyzer.AnalyzerResult, 0, len(selected))
+	for _, current := range selected {
+		metadata := current.Metadata()
+		start := time.Now()
+		result, err := current.Analyze(ctx, input)
+		if err != nil {
+			result = analyzer.AnalyzerResult{
+				AnalyzerID:   metadata.ID,
+				Name:         metadata.Name,
+				Version:      metadata.Version,
+				Status:       analyzer.AnalyzerStatusFailed,
+				Duration:     time.Since(start),
+				ErrorMessage: err.Error(),
+			}
+			logger.ErrorContext(ctx, "analyzer failed",
+				slog.String("operation", "analyzer_failed"),
+				slog.String("analyzer_id", metadata.ID),
+				slog.String("error_msg", err.Error()),
+			)
+		} else {
+			if result.AnalyzerID == "" {
+				result.AnalyzerID = metadata.ID
+			}
+			if result.Name == "" {
+				result.Name = metadata.Name
+			}
+			if result.Version == "" {
+				result.Version = metadata.Version
+			}
+			if result.Status == "" {
+				result.Status = analyzer.AnalyzerStatusSuccess
+			}
+			if result.Duration == 0 {
+				result.Duration = time.Since(start)
+			}
+			logger.InfoContext(ctx, "analyzer completed",
+				slog.String("operation", "analyzer_completed"),
+				slog.String("analyzer_id", result.AnalyzerID),
+				slog.String("status", string(result.Status)),
+				slog.Int("finding_count", len(result.Findings)),
+				slog.Int64("duration_ms", result.Duration.Milliseconds()),
+			)
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+func collectFindings(results []analyzer.AnalyzerResult) []findings.Finding {
+	var collected []findings.Finding
+	for _, result := range results {
+		collected = append(collected, result.Findings...)
+	}
+	return collected
 }
 
 func generateScanID() string {
