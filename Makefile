@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build
+.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build docker-build docker-up docker-down docker-logs docker-ps
 
 help:
 	@printf "Available targets:\n"
@@ -18,6 +18,11 @@ help:
 	@printf "  make frontend-install\n"
 	@printf "  make frontend-dev\n"
 	@printf "  make frontend-build\n"
+	@printf "  make docker-build\n"
+	@printf "  make docker-up\n"
+	@printf "  make docker-down\n"
+	@printf "  make docker-logs\n"
+	@printf "  make docker-ps\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -66,3 +71,18 @@ frontend-dev:
 
 frontend-build:
 	cd frontend && npm run build
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-ps:
+	docker compose ps

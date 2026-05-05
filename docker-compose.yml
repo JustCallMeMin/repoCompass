@@ -11,6 +11,42 @@ services:
       - "55432:5432"
     volumes:
       - repocompass-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d repocompass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: repocompass-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/repocompass?sslmode=disable
+      GITHUB_WEBHOOK_SECRET: ""
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/workspace:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_REPOCOMPASS_API_URL: http://localhost:8080
+    container_name: repocompass-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   repocompass-postgres-data:
