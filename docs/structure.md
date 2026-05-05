@@ -17,12 +17,14 @@ The repository is organized as a multi-area project, with the backend implementa
 - `docs/report-format.md`: Planned Markdown and JSON report format contract.
 - `docs/scan-lifecycle.md`: Developer-facing scan lifecycle guide for the core scan engine.
 - `docs/persistence-history.md`: PostgreSQL persistence and scan history workflow.
+- `docs/product-api.md`: Product API and GitHub integration reference.
 
 ## Backend Directory Layout
 
 - `backend/cmd/`: Application entrypoints and executable bootstrap code.
 - `backend/cmd/server/`: Main server binary startup logic.
 - `backend/internal/`: Private application packages that should not be imported from outside the module.
+- `backend/internal/api/`: HTTP API handlers and product API wiring.
 - `backend/internal/app/`: Application wiring and runtime composition.
 - `backend/internal/assessment/`: Assessment models and assessment coordination building blocks.
 - `backend/internal/cli/`: CLI command wiring for the `repocompass` executable.
