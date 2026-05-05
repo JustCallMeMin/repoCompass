@@ -20,6 +20,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `docs/product-api.md`: Product API and GitHub integration reference.
 - `docs/docker-runtime.md`: Local Docker product runtime guide.
 - `docker-compose.yml`: Local Docker Compose stack for PostgreSQL, API, and dashboard.
+- `.github/workflows/ci.yml`: CI workflow for backend, frontend, PostgreSQL integration, and Docker runtime smoke checks.
 
 ## Backend Directory Layout
 
