@@ -205,8 +205,8 @@ The repository currently uses local documentation under `docs/` as the repositor
 - Initial GitHub public repository scan path is in place
 - Dashboard product surface is in place
 - Docker Compose product runtime is in place
+- CI workflow is in place
 - Project documentation has started in English
-- CI workflow is not implemented yet
 - Real business logic is not implemented yet
 
 ## Contributing Notes

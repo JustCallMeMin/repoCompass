@@ -22,7 +22,7 @@ Before making changes, review these documents:
 ### Top-Level Directories
 
 - `backend/`: Backend application code, database assets, scripts, and test fixtures
-- `frontend/`: Frontend application area
+- `frontend/`: Next.js dashboard product surface
 - `deployments/`: Deployment manifests and environment-specific setup
 - `docs/`: Repository-facing documentation written in English
 
@@ -56,17 +56,20 @@ Current subdirectories under `backend/` include:
 
 ## Formatting, Linting, and Testing
 
-The repository is still in the bootstrap phase, but the standard local workflow scripts now exist under `backend/scripts/dev/`.
+The repository provides local workflow commands and GitHub Actions CI checks.
 
 - Formatting: `make fmt`
 - Linting/static checks: `make vet`
 - Testing: `make test`
+- Frontend build: `make frontend-build`
+- Docker runtime build: `make docker-build`
 
 At the current stage:
 
 - the backend Go module is already in place
-- the repository does not yet provide CI workflow definitions
-- the repository now provides Make targets such as `make fmt`, `make vet`, and `make test`
+- the frontend dashboard package is already in place
+- CI runs backend tests, backend vet, PostgreSQL integration tests, frontend lint/audit/build, and Docker runtime smoke checks
+- the repository provides Make targets such as `make fmt`, `make vet`, `make test`, `make frontend-build`, and `make docker-build`
 
 For local database workflow, copy `backend/.env.example` to `backend/.env` and use:
 
@@ -79,6 +82,10 @@ For local database workflow, copy `backend/.env.example` to `backend/.env` and u
 - `make db-status`
 
 The underlying scripts under `backend/scripts/dev/` still remain available and continue to auto-load `backend/.env` when it exists.
+
+GitHub Actions workflow definition:
+
+- `.github/workflows/ci.yml`
 
 ## Contribution Conventions
 
