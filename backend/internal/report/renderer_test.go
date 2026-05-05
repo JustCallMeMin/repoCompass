@@ -202,6 +202,16 @@ func fixedNow() time.Time {
 func assertGolden(t *testing.T, filename string, got []byte) {
 	t.Helper()
 	path := filepath.Join("..", "..", "testdata", "golden", "reports", filename)
+	
+	if os.Getenv("UPDATE_GOLDEN") == "true" {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("failed to create golden dir: %v", err)
+		}
+		if err := os.WriteFile(path, got, 0644); err != nil {
+			t.Fatalf("failed to write golden file: %v", err)
+		}
+	}
+	
 	want, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read golden file %s: %v", path, err)

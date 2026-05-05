@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build docker-build docker-up docker-down docker-logs docker-ps
+.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build docker-build docker-up docker-down docker-logs docker-ps build demo
 
 help:
 	@printf "Available targets:\n"
@@ -23,6 +23,8 @@ help:
 	@printf "  make docker-down\n"
 	@printf "  make docker-logs\n"
 	@printf "  make docker-ps\n"
+	@printf "  make build\n"
+	@printf "  make demo\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -86,3 +88,10 @@ docker-logs:
 
 docker-ps:
 	docker compose ps
+
+build:
+	cd backend && go build -o bin/repocompass ./cmd/repocompass
+
+demo: build
+	@echo "Running demo scan on RepoCompass itself..."
+	./backend/bin/repocompass scan .
