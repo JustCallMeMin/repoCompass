@@ -17,14 +17,15 @@ make docker-up
 - **Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API Health**: [http://localhost:8080/healthz](http://localhost:8080/healthz)
 
-To run a scan using the CLI:
+To run a scan using the CLI on a public repository:
 ```bash
-make db-up
-make migrate-up
-make server & # Start server in background
+make build
+./backend/bin/repocompass scan https://github.com/kubernetes/kubernetes
+```
 
-cd backend
-go run ./cmd/repocompass scan /path/to/your/repo
+To run a quick demo scan on RepoCompass itself:
+```bash
+make demo
 ```
 
 ## Documentation
