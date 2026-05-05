@@ -26,7 +26,11 @@ jobs:
             echo "Build failed: binary not found"
             exit 1
           fi
-          # Note: Smoke test version command. It might need to be adjusted based on CLI changes.
+          
+          echo "Running smoke tests..."
+          ./backend/bin/repocompass help
+          ./backend/bin/repocompass version
+          ./backend/bin/repocompass scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
