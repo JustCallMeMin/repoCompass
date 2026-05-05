@@ -1,0 +1,8 @@
+[project]
+name = "basic-python-repo"
+version = "0.1.0"
+description = "A basic python repository fixture"
+authors = [
+    {name = "Test Author", email = "test@example.com"},
+]
+dependencies = []
