@@ -1,216 +1,46 @@
 # RepoCompass
 
-RepoCompass is an onboarding repository tool for new contributors.
+RepoCompass is an open-source repository analysis and onboarding engine. It helps engineering teams instantly understand a new codebase, identify missing best practices, and assess the health of their repositories.
 
-This repository is still in the bootstrap phase. The current goal is to establish the initial project structure, project documentation, and local development conventions.
+## Quickstart
 
-## Repository Layout
-
-- `backend/`: Backend application code, database assets, scripts, and test fixtures.
-- `frontend/`: Next.js dashboard product surface.
-- `deployments/`: Deployment manifests and environment-specific setup.
-- `docs/`: Project documentation written in English.
-
-For more details about the backend folder structure, see [docs/structure.md](./docs/structure.md).
-
-## Local Setup
-
-### Prerequisites
-
-- Go 1.22+ installed
-- Node.js 20+ installed
-- Git installed
-- Docker with Docker Compose installed
-- A POSIX-compatible shell such as `zsh` or `bash`
-
-### Clone the repository
+Start the full stack (Dashboard + API + Database) via Docker:
 
 ```bash
 git clone https://github.com/JustCallMeMin/repoCompass.git
-cd repocompass
-```
+cd repoCompass
 
-### Review the project structure
-
-The project is still in its initial setup phase. Start by reviewing the current documentation:
-
-- [docs/structure.md](./docs/structure.md): Initial repository and backend directory structure
-- [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
-- [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Developer-facing scan lifecycle guide
-- [docs/docker-runtime.md](./docs/docker-runtime.md): Local Docker product runtime guide
-- [backend/db/README.md](./backend/db/README.md): Database directory usage guide
-- [backend/.env.example](./backend/.env.example): Local backend and database environment template
-- [frontend/.env.example](./frontend/.env.example): Dashboard environment template
-
-### Backend workspace
-
-The backend workspace has already been prepared with the expected top-level folders:
-
-- `backend/cmd`
-- `backend/internal`
-- `backend/db`
-- `backend/testdata`
-- `backend/scripts`
-
-The backend now includes a minimal Go module and CLI entrypoint:
-
-```bash
-cd backend
-go run ./cmd/repocompass --help
-go run ./cmd/repocompass scan
-```
-
-The backend also includes:
-
-- a Cobra-based CLI skeleton at `backend/cmd/repocompass`
-- internal package scaffolding for core modules under `backend/internal`
-- documented database layout under `backend/db`
-- script-based migration workflow under `backend/scripts/dev`
-- standard local `fmt`, `vet`, and `test` scripts under `backend/scripts/dev`
-- Docker Compose-based local PostgreSQL bootstrap
-
-As backend modules and runnable services are introduced, this README should be updated with:
-
-- dependency installation steps
-- database startup instructions
-- higher-level workflow commands if new wrappers are introduced
-
-### Backend local workflow
-
-Configure local backend and database values:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Then use the standard backend scripts:
-
-```bash
-make db-up
-make fmt
-make vet
-make test
-make migrate-status
-```
-
-The Makefile is the preferred shorthand. The underlying scripts in `backend/scripts/dev/` remain the source of truth and can still be run directly when needed.
-
-### Backend API server
-
-Start PostgreSQL, apply migrations, then run the HTTP API:
-
-```bash
-make db-up
-make migrate-up
-make server
-```
-
-The `make server` target loads `backend/.env` when present. The server reads
-`DATABASE_URL`, listens on `PORT` when set, and defaults to port `8080`.
-
-Initial API routes:
-
-- `GET /healthz`
-- `POST /api/v1/scans`
-- `GET /api/v1/repositories/{repository_id}/scans`
-- `GET /api/v1/scans/{scan_id}/findings`
-- `GET /api/v1/repositories/{repository_id}/metrics`
-- `POST /api/v1/integrations/github/webhook`
-
-### Dashboard
-
-The dashboard is a Next.js app under `frontend/`. It calls the backend API directly and defaults to `http://localhost:8080`.
-
-Configure dashboard environment values:
-
-```bash
-cp frontend/.env.example frontend/.env.local
-```
-
-Run the full local product surface with two processes:
-
-```bash
-make db-up
-make migrate-up
-make server
-```
-
-In a second shell:
-
-```bash
-make frontend-install
-make frontend-dev
-```
-
-Useful frontend check:
-
-```bash
-make frontend-build
-```
-
-### Docker product runtime
-
-Run the full local product stack with Docker Compose:
-
-```bash
-make docker-build
+# Build and start the stack
 make docker-up
 ```
 
-Then open:
+- **Dashboard**: [http://localhost:3000](http://localhost:3000)
+- **API Health**: [http://localhost:8080/healthz](http://localhost:8080/healthz)
 
-- Dashboard: `http://localhost:3000`
-- API health: `http://localhost:8080/healthz`
-
-The API container applies database migrations before starting. For local scans
-inside Docker, use `/workspace/...` paths because the repository root is mounted
-read-only at `/workspace` in the API container.
-
-Example Docker local scan path:
-
-```text
-/workspace/backend/testdata/fixtures/local-repositories/good-onboarding-repo
-```
-
-Stop the stack:
-
+To run a scan using the CLI:
 ```bash
-make docker-down
+make db-up
+make migrate-up
+make server & # Start server in background
+
+cd backend
+go run ./cmd/repocompass scan /path/to/your/repo
 ```
 
 ## Documentation
 
-The repository currently uses local documentation under `docs/` as the repository-facing source of truth.
+Whether you want to learn how RepoCompass works or contribute to its development, our documentation covers everything:
 
-- [docs/structure.md](./docs/structure.md): Repository and backend structure reference
-- [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
-- [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Core scan lifecycle and state reference
-- [docs/product-api.md](./docs/product-api.md): Product API and GitHub integration reference
-- [docs/docker-runtime.md](./docs/docker-runtime.md): Local Docker product runtime guide
-- [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
-- [backend/.env.example](./backend/.env.example): Local environment variable template
-- [frontend/.env.example](./frontend/.env.example): Dashboard environment variable template
+- **[Start Here: Contributor Guide](docs/start-here.md)** - Entry point for new contributors.
+- **[Local Setup](docs/local-setup.md)** - Detailed instructions for running components locally.
+- **[Architecture Walkthrough](docs/architecture-walkthrough.md)** - High-level system design.
+- **[Codebase Map](docs/structure.md)** - Directory structure reference.
+- **[Testing Guide](docs/testing-guide.md)** - How to test your changes.
 
-## Current Status
+## Contributing
 
-- Initial repository structure is in place
-- Backend Go module is in place
-- Cobra-based CLI skeleton is in place
-- Internal package scaffolding is in place
-- Database migration and seed organization is documented
-- Script-based migration workflow is in place
-- Standard local `fmt`, `vet`, and `test` scripts are in place
-- Docker Compose-based local PostgreSQL bootstrap is in place
-- Product API server is in place
-- Initial GitHub public repository scan path is in place
-- Dashboard product surface is in place
-- Docker Compose product runtime is in place
-- CI workflow is in place
-- Project documentation has started in English
-- Real business logic is not implemented yet
+We welcome contributions! Please review the [Contributor Checklist](docs/contributor-checklist.md) before opening a Pull Request. Check out the issues labeled `good first issue` to get started.
 
-## Contributing Notes
+## License
 
-- Keep documentation in English
-- Prefer following the existing backend layout before adding new top-level directories
-- Update `README.md` and related docs when the setup process becomes more concrete
+This project is licensed under the MIT License.
