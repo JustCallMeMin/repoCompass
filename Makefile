@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status
+.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status
 
 help:
 	@printf "Available targets:\n"
@@ -6,6 +6,7 @@ help:
 	@printf "  make vet\n"
 	@printf "  make test\n"
 	@printf "  make test-postgres\n"
+	@printf "  make server\n"
 	@printf "  make migrate-up\n"
 	@printf "  make migrate-down\n"
 	@printf "  make migrate-status\n"
@@ -26,6 +27,9 @@ test:
 
 test-postgres:
 	sh ./backend/scripts/dev/test-postgres.sh
+
+server:
+	set -a; [ ! -f backend/.env ] || . backend/.env; set +a; cd backend && go run ./cmd/server
 
 migrate-up:
 	./backend/scripts/dev/migrate-up.sh

@@ -91,6 +91,28 @@ make migrate-status
 
 The Makefile is the preferred shorthand. The underlying scripts in `backend/scripts/dev/` remain the source of truth and can still be run directly when needed.
 
+### Backend API server
+
+Start PostgreSQL, apply migrations, then run the HTTP API:
+
+```bash
+make db-up
+make migrate-up
+make server
+```
+
+The `make server` target loads `backend/.env` when present. The server reads
+`DATABASE_URL`, listens on `PORT` when set, and defaults to port `8080`.
+
+Initial API routes:
+
+- `GET /healthz`
+- `POST /api/v1/scans`
+- `GET /api/v1/repositories/{repository_id}/scans`
+- `GET /api/v1/scans/{scan_id}/findings`
+- `GET /api/v1/repositories/{repository_id}/metrics`
+- `POST /api/v1/integrations/github/webhook`
+
 ## Documentation
 
 The repository currently uses local documentation under `docs/` as the repository-facing source of truth.
@@ -98,6 +120,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 - [docs/structure.md](./docs/structure.md): Repository and backend structure reference
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
 - [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Core scan lifecycle and state reference
+- [docs/product-api.md](./docs/product-api.md): Product API and GitHub integration reference
 - [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
 - [backend/.env.example](./backend/.env.example): Local environment variable template
 
@@ -111,6 +134,8 @@ The repository currently uses local documentation under `docs/` as the repositor
 - Script-based migration workflow is in place
 - Standard local `fmt`, `vet`, and `test` scripts are in place
 - Docker Compose-based local PostgreSQL bootstrap is in place
+- Product API server is in place
+- Initial GitHub public repository scan path is in place
 - Project documentation has started in English
 - CI workflow is not implemented yet
 - Real business logic is not implemented yet
