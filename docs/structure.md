@@ -9,7 +9,7 @@ The repository is organized as a multi-area project, with the backend implementa
 ## Top-Level Directories
 
 - `backend/`: Go backend application code, database assets, scripts, and test fixtures.
-- `frontend/`: Reserved for frontend application code.
+- `frontend/`: Next.js dashboard product surface.
 - `deployments/`: Reserved for deployment-related manifests and environment setup.
 - `docs/`: Project documentation written in English.
 - `docs/analyzer-contract.md`: Contributor-facing contract for future analyzer implementations.
@@ -47,6 +47,13 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/testdata/fixtures/`: Concrete fixture files used by tests.
 - `backend/scripts/`: Developer and automation scripts.
 - `backend/scripts/dev/`: Local development helper scripts.
+
+## Frontend Directory Layout
+
+- `frontend/app/`: Next.js App Router pages for the dashboard, repository history, and scan findings.
+- `frontend/components/`: Shared dashboard UI components.
+- `frontend/lib/`: API client helpers for the backend product API.
+- `frontend/.env.example`: Local dashboard environment template.
 
 ## Notes
 
