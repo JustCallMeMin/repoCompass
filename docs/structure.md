@@ -18,11 +18,14 @@ The repository is organized as a multi-area project, with the backend implementa
 - `docs/scan-lifecycle.md`: Developer-facing scan lifecycle guide for the core scan engine.
 - `docs/persistence-history.md`: PostgreSQL persistence and scan history workflow.
 - `docs/product-api.md`: Product API and GitHub integration reference.
+- `docs/docker-runtime.md`: Local Docker product runtime guide.
+- `docker-compose.yml`: Local Docker Compose stack for PostgreSQL, API, and dashboard.
 
 ## Backend Directory Layout
 
 - `backend/cmd/`: Application entrypoints and executable bootstrap code.
 - `backend/cmd/server/`: Main server binary startup logic.
+- `backend/Dockerfile`: Docker image definition for the API server runtime.
 - `backend/internal/`: Private application packages that should not be imported from outside the module.
 - `backend/internal/api/`: HTTP API handlers and product API wiring.
 - `backend/internal/app/`: Application wiring and runtime composition.
@@ -47,12 +50,14 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/testdata/fixtures/`: Concrete fixture files used by tests.
 - `backend/scripts/`: Developer and automation scripts.
 - `backend/scripts/dev/`: Local development helper scripts.
+- `backend/scripts/docker/`: Docker runtime entrypoint scripts.
 
 ## Frontend Directory Layout
 
 - `frontend/app/`: Next.js App Router pages for the dashboard, repository history, and scan findings.
 - `frontend/components/`: Shared dashboard UI components.
 - `frontend/lib/`: API client helpers for the backend product API.
+- `frontend/Dockerfile`: Docker image definition for the dashboard runtime.
 - `frontend/.env.example`: Local dashboard environment template.
 
 ## Notes

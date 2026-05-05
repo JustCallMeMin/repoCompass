@@ -7,7 +7,7 @@ This repository is still in the bootstrap phase. The current goal is to establis
 ## Repository Layout
 
 - `backend/`: Backend application code, database assets, scripts, and test fixtures.
-- `frontend/`: Frontend application area.
+- `frontend/`: Next.js dashboard product surface.
 - `deployments/`: Deployment manifests and environment-specific setup.
 - `docs/`: Project documentation written in English.
 
@@ -37,6 +37,7 @@ The project is still in its initial setup phase. Start by reviewing the current 
 - [docs/structure.md](./docs/structure.md): Initial repository and backend directory structure
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
 - [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Developer-facing scan lifecycle guide
+- [docs/docker-runtime.md](./docs/docker-runtime.md): Local Docker product runtime guide
 - [backend/db/README.md](./backend/db/README.md): Database directory usage guide
 - [backend/.env.example](./backend/.env.example): Local backend and database environment template
 - [frontend/.env.example](./frontend/.env.example): Dashboard environment template
@@ -147,6 +148,36 @@ Useful frontend check:
 make frontend-build
 ```
 
+### Docker product runtime
+
+Run the full local product stack with Docker Compose:
+
+```bash
+make docker-build
+make docker-up
+```
+
+Then open:
+
+- Dashboard: `http://localhost:3000`
+- API health: `http://localhost:8080/healthz`
+
+The API container applies database migrations before starting. For local scans
+inside Docker, use `/workspace/...` paths because the repository root is mounted
+read-only at `/workspace` in the API container.
+
+Example Docker local scan path:
+
+```text
+/workspace/backend/testdata/fixtures/local-repositories/good-onboarding-repo
+```
+
+Stop the stack:
+
+```bash
+make docker-down
+```
+
 ## Documentation
 
 The repository currently uses local documentation under `docs/` as the repository-facing source of truth.
@@ -155,6 +186,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 - [docs/contributor-guide.md](./docs/contributor-guide.md): Contributor workflow and repository conventions
 - [docs/scan-lifecycle.md](./docs/scan-lifecycle.md): Core scan lifecycle and state reference
 - [docs/product-api.md](./docs/product-api.md): Product API and GitHub integration reference
+- [docs/docker-runtime.md](./docs/docker-runtime.md): Local Docker product runtime guide
 - [backend/db/README.md](./backend/db/README.md): Database migration and seed directory guide
 - [backend/.env.example](./backend/.env.example): Local environment variable template
 - [frontend/.env.example](./frontend/.env.example): Dashboard environment variable template
@@ -172,6 +204,7 @@ The repository currently uses local documentation under `docs/` as the repositor
 - Product API server is in place
 - Initial GitHub public repository scan path is in place
 - Dashboard product surface is in place
+- Docker Compose product runtime is in place
 - Project documentation has started in English
 - CI workflow is not implemented yet
 - Real business logic is not implemented yet

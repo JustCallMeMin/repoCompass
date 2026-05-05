@@ -1,0 +1,9 @@
+.git
+.omx
+.DS_Store
+
+backend/.env
+frontend/.env*.local
+
+frontend/.next
+frontend/node_modules
