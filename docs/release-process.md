@@ -4,7 +4,7 @@ This document outlines how to release a new version of RepoCompass.
 
 ## 1. Version Bump Process
 Currently, RepoCompass uses a hardcoded version. Before releasing:
-1. Update `Version` in `backend/cmd/repocompass/main.go`.
+1. Update `Version` in `backend/internal/cli/version.go`.
 2. Commit and push the version bump:
    ```bash
    git commit -m "chore(release): bump version to vX.Y.Z"

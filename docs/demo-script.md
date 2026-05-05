@@ -14,14 +14,14 @@ Instead of relying on live network clones which can be slow during a live demo, 
 
 ```bash
 #!/usr/bin/env bash
-# scripts/prepare-demo.sh
+# backend/scripts/dev/prepare-demo.sh
 mkdir -p /tmp/repocompass-demo
 git clone --depth 1 https://github.com/kubernetes/kubernetes /tmp/repocompass-demo/kubernetes
 git clone --depth 1 https://github.com/expressjs/express /tmp/repocompass-demo/express
 git clone --depth 1 https://github.com/pallets/flask /tmp/repocompass-demo/flask
 echo "Demo fixtures prepared at /tmp/repocompass-demo"
 ```
-*(You can create this script in `scripts/prepare-demo.sh` to quickly set up the demo environment).*
+*(You can create this script in `backend/scripts/dev/prepare-demo.sh` to quickly set up the demo environment).*
 
 ## 5-10 Minute Demo Script (T7-036)
 
