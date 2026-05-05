@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status
+.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build
 
 help:
 	@printf "Available targets:\n"
@@ -15,6 +15,9 @@ help:
 	@printf "  make db-reset\n"
 	@printf "  make db-seed\n"
 	@printf "  make db-status\n"
+	@printf "  make frontend-install\n"
+	@printf "  make frontend-dev\n"
+	@printf "  make frontend-build\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -54,3 +57,12 @@ db-seed:
 
 db-status:
 	./backend/scripts/dev/db-status.sh
+
+frontend-install:
+	cd frontend && npm install
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build

@@ -32,6 +32,24 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+func TestCORSPreflight(t *testing.T) {
+	handler := NewServer(nil, nil, nil, nil).Handler()
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodOptions, "/api/v1/scans", nil)
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("unexpected status: got %d", response.Code)
+	}
+	if response.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("expected CORS origin header")
+	}
+	if response.Header().Get("Access-Control-Allow-Methods") == "" {
+		t.Fatalf("expected CORS methods header")
+	}
+}
+
 func TestCreateLocalScan(t *testing.T) {
 	runner := fakeRunner{
 		result: scan.RunResult{
