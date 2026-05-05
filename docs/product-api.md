@@ -31,7 +31,7 @@ The Docker Compose database listens on host port `55432`, matching
 - `POST /api/v1/scans`: runs a persisted scan.
 - `GET /api/v1/repositories/{repository_id}/scans`: lists persisted scan history.
 - `GET /api/v1/scans/{scan_id}/findings`: lists persisted findings for one scan.
-- `GET /api/v1/repositories/{repository_id}/metrics`: lists metric trend data.
+- `GET /api/v1/repositories/{repository_id}/metrics`: lists metric trend data. Defaults to `assessment.overall_score`.
 - `POST /api/v1/integrations/github/webhook`: accepts basic GitHub webhook events.
 
 ## Scan Requests

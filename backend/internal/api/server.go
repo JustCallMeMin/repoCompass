@@ -149,6 +149,9 @@ func (s *Server) handleRepositoryScans(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "history_query_failed", err.Error())
 		return
 	}
+	if items == nil {
+		items = []history.ScanSummary{}
+	}
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -162,6 +165,9 @@ func (s *Server) handleScanFindings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "findings_query_failed", err.Error())
 		return
 	}
+	if items == nil {
+		items = []history.FindingDetail{}
+	}
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -172,13 +178,16 @@ func (s *Server) handleRepositoryMetrics(w http.ResponseWriter, r *http.Request)
 	}
 	metricKey := r.URL.Query().Get("metric_key")
 	if metricKey == "" {
-		metricKey = "onboarding_score"
+		metricKey = "assessment.overall_score"
 	}
 	limit := parseLimit(r, 20)
 	items, err := s.history.ListMetricTrend(r.Context(), r.PathValue("repository_id"), metricKey, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "metrics_query_failed", err.Error())
 		return
+	}
+	if items == nil {
+		items = []history.MetricPoint{}
 	}
 	writeJSON(w, http.StatusOK, items)
 }
