@@ -15,6 +15,7 @@ func NewRootCmd() *cobra.Command {
 		newFindingsCmd(),
 		newReportCmd(),
 		newDoctorCmd(),
+		newVersionCmd(),
 	)
 
 	return cmd
