@@ -23,6 +23,11 @@ echo "Demo fixtures prepared at /tmp/repocompass-demo"
 ```
 *(You can create this script in `backend/scripts/dev/prepare-demo.sh` to quickly set up the demo environment).*
 
+### Offline Fallback Fixture
+If you are doing a live demo without internet access, or if the GitHub clone fails, use the built-in, offline-ready deterministic fixture:
+- **Path**: `./backend/testdata/fixtures/local-repositories/good-onboarding-repo`
+- **Output Expectation**: It will successfully scan and yield a deterministic passing score because all best practices are included.
+
 ## 5-10 Minute Demo Script (T7-036)
 
 **0:00 - 1:00: Introduction**
