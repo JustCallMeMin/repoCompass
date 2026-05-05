@@ -31,3 +31,11 @@ The Release workflow automatically builds the Go binary (`make build`) and runs 
 
 ## 6. Publishing
 Review the Draft Release on GitHub, adjust the changelog text if necessary to make it more user-friendly, and click **Publish release**.
+
+## 7. Rollbacks and Hotfixes
+If a released version contains a critical flaw:
+1. **Rollback**: Instruct users to downgrade to the previous stable version tag. We do not unpublish tags unless there is a severe security exposure.
+2. **Hotfix**: Create a branch from the affected release tag (e.g., `git checkout -b hotfix/v0.1.1 v0.1.0`), push the fix, update the version in `version.go`, and trigger a new release.
+
+## 8. Repository Secrets
+**No repository secrets are required** for the standard release pipeline. The GitHub Action uses the default `GITHUB_TOKEN` to create the release and upload artifacts.
