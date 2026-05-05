@@ -5,55 +5,55 @@ This document audits the completeness of Milestone 7 "Open-Source Maturity".
 ## Wave 1: Contributor Entry Path
 - [x] **T7-001**: Define OSS readiness goals and success criteria.
 - [x] **T7-002**: Run a real clone/setup audit and capture friction points.
-- [x] **T7-003**: Create `docs/start-here.md` contributor roadmap.
-- [x] **T7-004**: Rewrite README.md for an OSS-first perspective.
-- [x] **T7-005**: Provide comprehensive `docs/local-setup.md`.
-- [x] **T7-006**: Create `docs/architecture-walkthrough.md`.
-- [x] **T7-007**: Document testing strategies in `docs/testing-guide.md`.
-- [x] **T7-008**: Create a standard `docs/contributor-checklist.md`.
-- [x] **T7-009**: Set up pull request templates reflecting the checklist.
+- [x] **T7-003**: Add Start Here guide.
+- [x] **T7-004**: OSS-first README rewrite.
+- [x] **T7-005**: Provide local setup guide.
+- [x] **T7-006**: Create architecture walkthrough.
+- [x] **T7-007**: Create codebase map.
+- [x] **T7-008**: Provide testing guide.
+- [x] **T7-009**: Create contributor checklist.
 
 ## Wave 2: Extension Documentation & Examples
-- [x] **T7-010**: Document analyzer interface and lifecycle (`analyzer-contract.md`).
-- [x] **T7-011**: Create a fully runnable example analyzer with tests.
-- [x] **T7-012**: Document provider interface and git resolution (`provider-contract.md`).
-- [x] **T7-013**: Create an example provider scaffold with tests.
-- [x] **T7-014**: Document renderer logic and template rendering (`renderer-contract.md`).
-- [x] **T7-015**: Create an example renderer with tests.
-- [x] **T7-016**: Cross-link extension docs from a centralized API index.
+- [x] **T7-010**: Document analyzer extension contract.
+- [x] **T7-011**: Document provider extension contract.
+- [x] **T7-012**: Document renderer extension contract.
+- [x] **T7-013**: Add minimal runnable example analyzer with tests.
+- [x] **T7-014**: Add minimal runnable example provider with tests.
+- [x] **T7-015**: Add minimal runnable example renderer with tests.
+- [x] **T7-016**: Build docs navigation/API index.
 
 ## Wave 3: Testing Maturity & Fixtures
-- [x] **T7-017**: Establish realistic fake repositories in `testdata/fixtures`.
-- [x] **T7-018**: Expand test suite to explicitly use fixtures.
-- [x] **T7-019**: Simplify snapshot generation (e.g., `UPDATE_GOLDEN=true`).
-- [x] **T7-020**: Update renderer tests to utilize the golden file methodology.
-- [x] **T7-021**: Add a test compatibility matrix in `docs/compatibility-matrix.md`.
+- [x] **T7-017**: Expand small deterministic fixtures for ecosystems.
+- [x] **T7-018**: Add report golden tests for important JSON/Markdown outputs.
+- [x] **T7-019**: Document golden update policy.
+- [x] **T7-020**: Add compatibility matrix mapping analyzers to ecosystems.
+- [x] **T7-021**: Keep fixtures lightweight (no real dependency installs).
 
 ## Wave 4: Community Workflow Standardization
-- [x] **T7-022**: Implement GitHub Issue Templates (Bug, Feature, Analyzer).
-- [x] **T7-023**: Define label taxonomy in `docs/label-taxonomy.md`.
-- [x] **T7-024**: Create a guide for "Good First Issues".
-- [x] **T7-025**: Document the preferred contribution branching workflow.
-- [x] **T7-026**: Seed a small backlog of easy tasks for new joiners.
-- [x] **T7-027**: Draft a basic triage guide for maintainers.
-- [x] **T7-028**: Link community files into the `start-here.md` flow.
+- [x] **T7-022**: Add GitHub issue templates (bug, feature, analyzer).
+- [x] **T7-023**: Add PR template using the contributor checklist.
+- [x] **T7-024**: Document label taxonomy.
+- [x] **T7-025**: Add good-first-issue guide.
+- [x] **T7-026**: Seed issue backlog under docs/planning.
+- [x] **T7-027**: Add contribution workflow.
+- [x] **T7-028**: Add maintainer triage guide.
 
 ## Wave 5: Release Process Maturity
-- [x] **T7-029**: Draft `docs/release-process.md`.
-- [x] **T7-030**: Define versioning strategy and CHANGELOG format.
-- [x] **T7-031**: Automate release artifacts building via GitHub Actions.
-- [x] **T7-032**: Document version bump, rollback, hotfix processes, and lack of secrets.
-- [x] **T7-033**: Incorporate artifact smoke testing (`version`, `scan`, `help`) into CI.
+- [x] **T7-029**: Add versioning policy.
+- [x] **T7-030**: Add changelog policy & `CHANGELOG.md`.
+- [x] **T7-031**: Add release checklist.
+- [x] **T7-032**: Add release workflow and document secrets/rollback path.
+- [x] **T7-033**: Validate artifact smoke (`help`, `version`, `scan`).
 
 ## Wave 6: Public Demo Readiness
-- [x] **T7-034**: Provide robust demo fixture set (including fallback offline repos).
-- [x] **T7-035**: Select target public repositories for showcasing.
-- [x] **T7-036**: Prepare a concise 5-10 minute demo script for presentations.
-- [x] **T7-037**: Include terminal mockups/screenshots in `docs/assets/` for visual context.
+- [x] **T7-034**: Add public demo fixture set (good/problematic repos).
+- [x] **T7-035**: Add public GitHub repository candidate list.
+- [x] **T7-036**: Add 5-10 minute demo script.
+- [x] **T7-037**: Add screenshots.
 
-## Wave 7: Final Polish
-- [x] **T7-038**: Governance, Licenses, and Community Health files audit.
-- [x] **T7-039**: Remove unused boilerplate and update `.gitignore`.
-- [x] **T7-040**: Final end-to-end audit and write OSS Readiness Review checklist.
+## Wave 7: Community Health And Final Review
+- [x] **T7-038**: Add community health files (LICENSE, CODE_OF_CONDUCT.md, etc.).
+- [x] **T7-039**: Add minimal governance notes.
+- [x] **T7-040**: Run OSS readiness review.
 
 **Verdict**: All 40 tasks have been successfully implemented and validated. The repository is mature for public contribution.
