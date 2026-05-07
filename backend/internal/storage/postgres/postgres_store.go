@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/history"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/org"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
@@ -54,9 +56,13 @@ func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
-// SaveRepository upserts a repository row identified by its ID.
-// If a row with the same ID already exists, all mutable fields are updated.
+// SaveRepository inserts or updates a repository.
 func (s *Store) SaveRepository(ctx context.Context, repo repository.Repository) error {
+	orgID := repo.OrganizationID
+	if orgID == "" {
+		orgID = org.DefaultPersonalOrgID
+	}
+
 	const q = `
 INSERT INTO repositories (
 	id, name, owner_name, full_name, url, provider,
@@ -91,7 +97,7 @@ ON CONFLICT (id) DO UPDATE SET
 		repo.PrimaryEcosystem,
 		repo.IsMonorepo,
 		string(repo.Status),
-		repo.OrganizationID,
+		orgID,
 	)
 	if err != nil {
 		return fmt.Errorf("postgres: SaveRepository: %w", err)
@@ -370,8 +376,13 @@ type dbExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-// saveRepository upserts a repository using the provided executor.
+// saveRepository is the internal transaction-aware version.
 func saveRepository(ctx context.Context, exec dbExecutor, repo repository.Repository) error {
+	orgID := repo.OrganizationID
+	if orgID == "" {
+		orgID = org.DefaultPersonalOrgID
+	}
+
 	const q = `
 INSERT INTO repositories (
 	id, name, owner_name, full_name, url, provider,
@@ -405,7 +416,7 @@ ON CONFLICT (id) DO UPDATE SET
 		repo.PrimaryEcosystem,
 		repo.IsMonorepo,
 		string(repo.Status),
-		repo.OrganizationID,
+		orgID,
 	)
 	if err != nil {
 		return fmt.Errorf("postgres: save repository: %w", err)
@@ -783,4 +794,29 @@ func stringKeyCategoryBreakdown(values map[rules.Category]assessment.CategoryBre
 		out[string(key)] = value
 	}
 	return out
+}
+
+// GetActiveAssessmentPolicy fetches the active assessment policy for an org.
+func (s *Store) GetActiveAssessmentPolicy(ctx context.Context, orgID string) (assessment.OrgPolicy, error) {
+	// For MVP, we will query the policies table for a policy named "assessment_policy".
+	// If not found, return empty policy.
+	query := `
+		SELECT rules FROM policies
+		WHERE organization_id = $1 AND name = 'assessment_policy'
+		ORDER BY updated_at DESC LIMIT 1
+	`
+	var rulesData []byte
+	err := s.db.QueryRowContext(ctx, query, orgID).Scan(&rulesData)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return assessment.OrgPolicy{}, nil
+		}
+		return assessment.OrgPolicy{}, err
+	}
+
+	var policy assessment.OrgPolicy
+	if err := json.Unmarshal(rulesData, &policy); err != nil {
+		return assessment.OrgPolicy{}, err
+	}
+	return policy, nil
 }

@@ -6,6 +6,7 @@ package noop
 import (
 	"context"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
@@ -43,4 +44,9 @@ func (s *Store) UpdateScan(_ context.Context, _ scan.Scan) error {
 // SaveRunResult is a no-op.
 func (s *Store) SaveRunResult(_ context.Context, _ scan.RunResult) error {
 	return nil
+}
+
+// GetActiveAssessmentPolicy is a no-op.
+func (s *Store) GetActiveAssessmentPolicy(_ context.Context, _ string) (assessment.OrgPolicy, error) {
+	return assessment.OrgPolicy{}, nil
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { OrgSwitcher } from "./OrgSwitcher";
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
@@ -12,8 +13,20 @@ export function Shell({ children }: { children: ReactNode }) {
               Scan control room
             </h1>
           </Link>
-          <div className="max-w-xl text-sm leading-6 text-ink/70">
-            Trigger scans, inspect persisted history, and review findings without leaving the product surface.
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <div className="flex items-center gap-3">
+              <OrgSwitcher />
+              <Link
+                href="/organizations"
+                id="nav-organizations"
+                className="text-xs font-bold uppercase tracking-[0.14em] text-ink/60 hover:text-ink"
+              >
+                Organizations
+              </Link>
+            </div>
+            <p className="max-w-xl text-sm leading-6 text-ink/70">
+              Trigger scans, inspect persisted history, and review findings without leaving the product surface.
+            </p>
           </div>
         </header>
         {children}

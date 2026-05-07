@@ -1,6 +1,8 @@
 .omx/
 .DS_Store
 backend/.env
+backend/reports/
+reports/
 frontend/.next/
 frontend/node_modules/
 frontend/.env*.local

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/config"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
@@ -117,4 +118,8 @@ func TestLocalScanRunner_SaveRunResultFailureFails(t *testing.T) {
 	if result.Scan.Status != scan.StatusFailed {
 		t.Errorf("expected scan status %q, got %q", scan.StatusFailed, result.Scan.Status)
 	}
+}
+
+func (m *fakeStore) GetActiveAssessmentPolicy(ctx context.Context, orgID string) (assessment.OrgPolicy, error) {
+	return assessment.OrgPolicy{}, nil
 }

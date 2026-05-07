@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
 )
@@ -26,4 +27,7 @@ type Store interface {
 
 	// SaveRunResult persists the completed scan result as one logical unit.
 	SaveRunResult(ctx context.Context, result RunResult) error
+
+	// GetActiveAssessmentPolicy fetches the active assessment policy for an org.
+	GetActiveAssessmentPolicy(ctx context.Context, orgID string) (assessment.OrgPolicy, error)
 }

@@ -17,7 +17,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
-	handler := NewServer(nil, nil, nil, nil).Handler()
+	handler := NewServer(nil, nil, nil, nil, nil).Handler()
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 
@@ -33,7 +33,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestCORSPreflight(t *testing.T) {
-	handler := NewServer(nil, nil, nil, nil).Handler()
+	handler := NewServer(nil, nil, nil, nil, nil).Handler()
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodOptions, "/api/v1/scans", nil)
 
@@ -64,7 +64,7 @@ func TestCreateLocalScan(t *testing.T) {
 			Assessment: assessment.Assessment{OverallScore: 82},
 		},
 	}
-	handler := NewServer(&runner, nil, nil, nil).Handler()
+	handler := NewServer(&runner, nil, nil, nil, nil).Handler()
 	body := bytes.NewBufferString(`{"source_type":"local","path":"./repo"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/scans", body)
 	response := httptest.NewRecorder()
@@ -85,7 +85,7 @@ func TestCreateLocalScan(t *testing.T) {
 }
 
 func TestCreateScanRejectsInvalidLocalRequest(t *testing.T) {
-	handler := NewServer(&fakeRunner{}, nil, nil, nil).Handler()
+	handler := NewServer(&fakeRunner{}, nil, nil, nil, nil).Handler()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/scans", bytes.NewBufferString(`{"source_type":"local"}`))
 	response := httptest.NewRecorder()
 
@@ -104,7 +104,7 @@ func TestCreateGitHubScanUsesCheckoutPath(t *testing.T) {
 		Snapshot:   snapshot.RepositorySnapshot{ID: "snap_123"},
 	}}
 	cloner := fakeGitHubCloner{checkout: ghintegration.Checkout{Path: "/tmp/repo", Cleanup: func() {}}}
-	handler := NewServer(&runner, nil, &cloner, nil).Handler()
+	handler := NewServer(&runner, nil, &cloner, nil, nil).Handler()
 	body := bytes.NewBufferString(`{"source_type":"github","url":"https://github.com/owner/repo"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/scans", body)
 	response := httptest.NewRecorder()
@@ -128,7 +128,7 @@ func TestHistoryEndpoints(t *testing.T) {
 		findings: []history.FindingDetail{{ID: "finding_123", ScanID: "scan_123"}},
 		metrics:  []history.MetricPoint{{ScanID: "scan_123", RepositoryID: "repo_123", MetricKey: "onboarding_score", Value: 82}},
 	}
-	handler := NewServer(nil, &store, nil, nil).Handler()
+	handler := NewServer(nil, &store, nil, nil, nil).Handler()
 
 	for _, tc := range []struct {
 		name string

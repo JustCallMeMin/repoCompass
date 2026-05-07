@@ -38,7 +38,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("initialize scan runner: %w", err)
 	}
 
-	server := api.NewServer(runner, store, ghintegration.PublicCloner{}, logger)
+	server := api.NewServer(runner, store, ghintegration.PublicCloner{}, store, logger)
 	server.SetGitHubWebhookSecret(os.Getenv("GITHUB_WEBHOOK_SECRET"))
 	httpServer := &http.Server{
 		Addr:              ":" + port(),
