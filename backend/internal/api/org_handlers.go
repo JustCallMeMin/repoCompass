@@ -44,7 +44,7 @@ func (s *Server) handleListOrganizations(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": accessibleOrgs})
+	writeData(w, r, http.StatusOK, accessibleOrgs)
 }
 
 func (s *Server) handleGetOrganization(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +65,7 @@ func (s *Server) handleGetOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": o})
+	writeData(w, r, http.StatusOK, o)
 }
 
 func (s *Server) handleListMemberships(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +81,7 @@ func (s *Server) handleListMemberships(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": memberships})
+	writeData(w, r, http.StatusOK, memberships)
 }
 
 func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	writeData(w, r, http.StatusOK, map[string]string{"status": "success"})
 }
 
 func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +152,7 @@ func (s *Server) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
+	writeData(w, r, http.StatusOK, map[string]string{"status": "removed"})
 }
 
 func (s *Server) handleGetPolicy(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +180,7 @@ func (s *Server) handleGetPolicy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": p})
+	writeData(w, r, http.StatusOK, p)
 }
 
 func (s *Server) handleSavePolicy(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +218,7 @@ func (s *Server) handleSavePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	writeData(w, r, http.StatusOK, map[string]string{"status": "success"})
 }
 
 // handleListOrgRepositories lists repositories belonging to an organization (T6-021).
@@ -249,5 +249,5 @@ func (s *Server) handleListOrgRepositories(w http.ResponseWriter, r *http.Reques
 	if repos == nil {
 		repos = []repository.Repository{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": repos})
+	writeData(w, r, http.StatusOK, repos)
 }

@@ -27,5 +27,5 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		"go_version": runtime.Version(),
 	}
 
-	writeJSON(w, http.StatusOK, payload)
+	writeData(w, r, http.StatusOK, payload)
 }

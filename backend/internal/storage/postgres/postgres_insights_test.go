@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/org"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/snapshot"
@@ -16,6 +17,9 @@ func TestGetOrganizationInsights(t *testing.T) {
 	store := openDB(t)
 
 	orgID := "test_org_1"
+	if err := store.SaveOrganization(ctx, org.Organization{ID: orgID, Name: "Test Org", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}); err != nil {
+		t.Fatalf("SaveOrganization failed: %v", err)
+	}
 
 	// Create repository 1
 	repo1 := repository.Repository{
@@ -53,7 +57,7 @@ func TestGetOrganizationInsights(t *testing.T) {
 		Scan:       scan1,
 		Repository: repo1,
 		Snapshot:   snap1,
-		Assessment: assessment.Assessment{OverallScore: 80},
+		Assessment: assessment.Assessment{OverallScore: 80, Label: assessment.ScoreLabelGood},
 	}
 	if err := store.SaveRunResult(ctx, result1); err != nil {
 		t.Fatalf("SaveRunResult failed: %v", err)
@@ -95,7 +99,7 @@ func TestGetOrganizationInsights(t *testing.T) {
 		Scan:       scan2,
 		Repository: repo2,
 		Snapshot:   snap2,
-		Assessment: assessment.Assessment{OverallScore: 100},
+		Assessment: assessment.Assessment{OverallScore: 100, Label: assessment.ScoreLabelExcellent},
 	}
 	if err := store.SaveRunResult(ctx, result2); err != nil {
 		t.Fatalf("SaveRunResult failed: %v", err)

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-RepoCompass exposes a small HTTP API for persisted scan workflows and read-only
-history views. The API builds on the CLI scan engine, PostgreSQL persistence,
-and report/history models already used by local workflows.
+RepoCompass exposes the Milestone 4 Product API for persisted scans,
+repository history, GitHub webhook intake, and session-aware access. The
+OpenAPI contract lives in [openapi-m4.yaml](openapi-m4.yaml).
 
 ## Running The Server
 
@@ -13,57 +13,56 @@ Start PostgreSQL, apply migrations, and run the API server:
 ```bash
 make db-up
 make migrate-up
-make server
+DEV_HEADER_AUTH=true make server
 ```
 
 Configuration:
 
 - `DATABASE_URL`: required PostgreSQL connection string.
 - `PORT`: optional HTTP port, defaults to `8080`.
-- `GITHUB_WEBHOOK_SECRET`: optional secret for GitHub webhook HMAC validation.
+- `DEV_HEADER_AUTH`: set to `true` to allow local `X-User-Id` and
+  `X-Organization-Id` headers.
+- `GITHUB_WEBHOOK_SECRET`: required outside dev mode for GitHub webhook HMAC
+  validation.
+- `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`,
+  `GITHUB_OAUTH_REDIRECT_URL`: GitHub OAuth session configuration.
 
-The Docker Compose database listens on host port `55432`, matching
-`backend/.env.example`.
+## Response Envelope
+
+All M4 API responses use this envelope:
+
+```json
+{"data": {}, "meta": {"request_id": "req_..."}, "error": null}
+```
+
+Errors set `data` to `null` and use stable `error.code` values.
 
 ## Routes
 
-- `GET /healthz`: returns server health.
-- `POST /api/v1/scans`: runs a persisted scan.
-- `GET /api/v1/repositories/{repository_id}/scans`: lists persisted scan history.
-- `GET /api/v1/scans/{scan_id}/findings`: lists persisted findings for one scan.
-- `GET /api/v1/repositories/{repository_id}/metrics`: lists metric trend data. Defaults to `assessment.overall_score`.
-- `POST /api/v1/integrations/github/webhook`: accepts basic GitHub webhook events.
+- `GET /api/v1/health`: returns server health.
+- `GET /api/v1/repositories`: lists repositories visible to the current actor.
+- `GET /api/v1/repositories/{repository_id}`: returns repository detail.
+- `POST /api/v1/repositories/{repository_id}/scans`: runs a persisted scan for
+  an existing repository.
+- `POST /api/v1/scans`: backward-compatible direct scan trigger.
+- `GET /api/v1/repositories/{repository_id}/scans`: lists persisted scan
+  history.
+- `GET /api/v1/scans/{scan_id}`: returns scan detail.
+- `GET /api/v1/scans/{scan_id}/findings`: lists findings with evidence and
+  recommendations.
+- `GET /api/v1/scans/{scan_id}/assessment`: returns persisted assessment.
+- `GET /api/v1/scans/{scan_id}/reports`: returns report metadata.
+- `GET /api/v1/repositories/{repository_id}/metrics`: lists metric trend data.
+- `POST /api/v1/integrations/github/webhook`: validates GitHub webhook payloads,
+  persists the event, and queues a scan job.
+- `GET /api/v1/auth/github/login`: returns a GitHub OAuth authorization URL.
+- `GET /api/v1/auth/github/callback`: creates a RepoCompass session.
+- `GET /api/v1/auth/session`: returns the current actor and organization.
+- `POST /api/v1/auth/logout`: revokes the current session.
 
-## Scan Requests
+## GitHub Webhooks
 
-Local repository scan:
-
-```json
-{
-  "source_type": "local",
-  "path": "./testdata/fixtures/local-repositories/good-onboarding-repo"
-}
-```
-
-Public GitHub repository scan:
-
-```json
-{
-  "source_type": "github",
-  "url": "https://github.com/owner/repo"
-}
-```
-
-GitHub scans clone the public repository into a temporary local checkout, run
-the existing local scan flow, then remove the checkout after the request.
-
-## Webhooks
-
-The webhook endpoint validates `X-Hub-Signature-256` when
-`GITHUB_WEBHOOK_SECRET` is configured. The first supported events are:
-
-- `ping`: returns `ok`
-- `push`: accepts the event and records the repository identity from the payload
-
-Webhook handling is intentionally minimal in this milestone. It validates and
-parses events but does not yet provide a full background queue.
+Webhook requests must include `X-GitHub-Event`, `X-GitHub-Delivery`, and
+`X-Hub-Signature-256`. Duplicate delivery IDs are rejected by a unique database
+constraint. `push` events create a `github_webhook_events` row and a queued
+`scan_jobs` row for the repository.

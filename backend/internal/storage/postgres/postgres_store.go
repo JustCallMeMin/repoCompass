@@ -69,19 +69,20 @@ func (s *Store) SaveRepository(ctx context.Context, repo repository.Repository) 
 	}
 	const q = `
 INSERT INTO repositories (
-	id, name, owner_name, full_name, url, provider,
+	id, name, owner_name, full_name, url, local_path, provider,
 	default_branch, primary_ecosystem, is_monorepo, status,
 	organization_id, updated_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6,
-	$7, $8, $9, $10,
-	$11, NOW()
+	$1, $2, $3, $4, $5, $6, $7,
+	$8, $9, $10, $11,
+	$12, NOW()
 )
 ON CONFLICT (id) DO UPDATE SET
 	name              = EXCLUDED.name,
 	owner_name        = EXCLUDED.owner_name,
 	full_name         = EXCLUDED.full_name,
 	url               = EXCLUDED.url,
+	local_path        = EXCLUDED.local_path,
 	provider          = EXCLUDED.provider,
 	default_branch    = EXCLUDED.default_branch,
 	primary_ecosystem = EXCLUDED.primary_ecosystem,
@@ -96,6 +97,7 @@ ON CONFLICT (id) DO UPDATE SET
 		repo.OwnerName,
 		repo.FullName,
 		repo.URL,
+		repo.LocalPath,
 		string(repo.Provider),
 		repo.DefaultBranch,
 		repo.PrimaryEcosystem,
@@ -423,19 +425,20 @@ func saveRepository(ctx context.Context, exec dbExecutor, repo repository.Reposi
 	}
 	const q = `
 INSERT INTO repositories (
-	id, name, owner_name, full_name, url, provider,
+	id, name, owner_name, full_name, url, local_path, provider,
 	default_branch, primary_ecosystem, is_monorepo, status,
 	organization_id, updated_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6,
-	$7, $8, $9, $10,
-	$11, NOW()
+	$1, $2, $3, $4, $5, $6, $7,
+	$8, $9, $10, $11,
+	$12, NOW()
 )
 ON CONFLICT (id) DO UPDATE SET
 	name              = EXCLUDED.name,
 	owner_name        = EXCLUDED.owner_name,
 	full_name         = EXCLUDED.full_name,
 	url               = EXCLUDED.url,
+	local_path        = EXCLUDED.local_path,
 	provider          = EXCLUDED.provider,
 	default_branch    = EXCLUDED.default_branch,
 	primary_ecosystem = EXCLUDED.primary_ecosystem,
@@ -449,6 +452,7 @@ ON CONFLICT (id) DO UPDATE SET
 		repo.OwnerName,
 		repo.FullName,
 		repo.URL,
+		repo.LocalPath,
 		string(repo.Provider),
 		repo.DefaultBranch,
 		repo.PrimaryEcosystem,

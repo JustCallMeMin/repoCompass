@@ -34,7 +34,7 @@ func (s *Server) handleListPolicies(w http.ResponseWriter, r *http.Request) {
 	if policies == nil {
 		policies = []org.Policy{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": policies})
+	writeData(w, r, http.StatusOK, policies)
 }
 
 // handleOrgInsights returns aggregated org-level insights.
@@ -63,5 +63,5 @@ func (s *Server) handleOrgInsights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"data": result})
+	writeData(w, r, http.StatusOK, result)
 }

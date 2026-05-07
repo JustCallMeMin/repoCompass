@@ -128,6 +128,17 @@ func (f *fakeOrgStore) ListRepositoriesByOrg(_ context.Context, orgID string) ([
 	return result, nil
 }
 
+func (f *fakeOrgStore) SaveRepository(_ context.Context, repo repository.Repository) error {
+	for i, existing := range f.repos {
+		if existing.ID == repo.ID {
+			f.repos[i] = repo
+			return nil
+		}
+	}
+	f.repos = append(f.repos, repo)
+	return nil
+}
+
 func errNotFound(resource, id string) error {
 	return &notFoundError{resource: resource, id: id}
 }

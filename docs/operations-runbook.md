@@ -25,6 +25,10 @@ This runbook covers operational procedures for the local RepoCompass product run
 | `DATABASE_URL` | Yes | PostgreSQL DSN, e.g. `postgres://user:pass@host:5432/repocompass?sslmode=disable` |
 | `PORT` | No (default 8080) | HTTP listen port |
 | `GITHUB_WEBHOOK_SECRET` | No | HMAC secret for GitHub webhook validation |
+| `DEV_HEADER_AUTH` | No | Enables local `X-User-Id` and `X-Organization-Id` headers when set to `true` |
+| `GITHUB_OAUTH_CLIENT_ID` | No | GitHub OAuth application client ID |
+| `GITHUB_OAUTH_CLIENT_SECRET` | No | GitHub OAuth application client secret |
+| `GITHUB_OAUTH_REDIRECT_URL` | No | GitHub OAuth callback URL |
 | `LOG_LEVEL` | No (default info) | Structured log level: debug, info, warn, error |
 | `NEXT_PUBLIC_REPOCOMPASS_USER_ID` | No | Dashboard local-dev actor ID. Defaults to `mock_user`. |
 
@@ -121,6 +125,9 @@ curl -X POST "$BASE/api/v1/scans" \
   -H "Content-Type: application/json" \
   -H "X-Organization-Id: 00000000-0000-0000-0000-000000000000" \
   -d '{"source_type":"local","path":"/path/to/repo"}'
+
+# M4 smoke script
+BASE_URL="$BASE" sh backend/scripts/dev/test-api-m4.sh
 ```
 
 ---

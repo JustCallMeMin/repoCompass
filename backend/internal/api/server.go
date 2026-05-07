@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/auth"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/history"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/insights"
@@ -27,8 +28,12 @@ import (
 // HistoryReader reads persisted scan history and findings for API responses.
 type HistoryReader interface {
 	ListScanHistory(ctx context.Context, repositoryID string, limit int) ([]history.ScanSummary, error)
+	LatestScan(ctx context.Context, repositoryID string) (history.ScanSummary, error)
 	ListFindings(ctx context.Context, scanID string) ([]history.FindingDetail, error)
 	ListMetricTrend(ctx context.Context, repositoryID string, metricKey string, limit int) ([]history.MetricPoint, error)
+	GetScan(ctx context.Context, scanID string) (scan.Scan, error)
+	GetAssessment(ctx context.Context, scanID string) (assessment.Assessment, error)
+	ListReports(ctx context.Context, scanID string) ([]map[string]any, error)
 }
 
 // GitHubCloner prepares public GitHub repositories as local scan paths.
@@ -39,6 +44,26 @@ type GitHubCloner interface {
 // InsightsReader fetches organization-level aggregated statistics.
 type InsightsReader interface {
 	GetOrganizationInsights(ctx context.Context, orgID string) (insights.OrganizationInsights, error)
+}
+
+// SessionStore manages product API users and sessions.
+type SessionStore interface {
+	SaveUser(ctx context.Context, user auth.User) error
+	GetUser(ctx context.Context, id string) (auth.User, error)
+	SaveSession(ctx context.Context, session auth.Session) error
+	GetSessionByTokenHash(ctx context.Context, tokenHash string) (auth.Session, error)
+	RevokeSession(ctx context.Context, id string) error
+}
+
+// GitHubIntegrationStore manages GitHub integrations and async scan jobs.
+type GitHubIntegrationStore interface {
+	SaveGitHubIntegration(ctx context.Context, value ghintegration.Integration) error
+	FindGitHubIntegration(ctx context.Context, orgID, owner, repoName string) (ghintegration.Integration, error)
+	SaveWebhookEvent(ctx context.Context, event ghintegration.WebhookEvent) error
+	SaveScanJob(ctx context.Context, job ghintegration.ScanJob) error
+	ClaimNextQueuedScanJob(ctx context.Context) (ghintegration.ScanJob, error)
+	CompleteScanJob(ctx context.Context, jobID, scanID string) error
+	FailScanJob(ctx context.Context, jobID, message string) error
 }
 
 // Server handles RepoCompass API routes.
@@ -52,6 +77,9 @@ type Server struct {
 	authSvc             *auth.AuthorizationService
 	insights            InsightsReader
 	scanLimiter         *scanRateLimiter
+	sessions            SessionStore
+	integrations        GitHubIntegrationStore
+	devHeaderAuth       bool
 }
 
 // NewServer creates an API server with required dependencies.
@@ -74,6 +102,9 @@ func NewServer(runner scan.ScanRunner, history HistoryReader, github GitHubClone
 			limit:  20,
 			window: time.Minute,
 		}),
+		sessions:      sessionStoreFrom(orgs),
+		integrations:  integrationStoreFrom(orgs),
+		devHeaderAuth: true,
 	}
 }
 
@@ -82,15 +113,31 @@ func (s *Server) SetGitHubWebhookSecret(secret string) {
 	s.githubWebhookSecret = secret
 }
 
+// SetDevHeaderAuth enables or disables local header-based auth.
+func (s *Server) SetDevHeaderAuth(enabled bool) {
+	s.devHeaderAuth = enabled
+}
+
 // Handler returns the HTTP handler for all API routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
+	mux.HandleFunc("GET /api/v1/health", s.handleHealth)
 	mux.HandleFunc("POST /api/v1/scans", s.handleCreateScan)
+	mux.HandleFunc("GET /api/v1/repositories", s.handleListRepositories)
+	mux.HandleFunc("GET /api/v1/repositories/{repository_id}", s.handleGetRepository)
+	mux.HandleFunc("POST /api/v1/repositories/{repository_id}/scans", s.handleCreateRepositoryScan)
 	mux.HandleFunc("GET /api/v1/repositories/{repository_id}/scans", s.handleRepositoryScans)
 	mux.HandleFunc("GET /api/v1/repositories/{repository_id}/metrics", s.handleRepositoryMetrics)
+	mux.HandleFunc("GET /api/v1/scans/{scan_id}", s.handleGetScan)
 	mux.HandleFunc("GET /api/v1/scans/{scan_id}/findings", s.handleScanFindings)
+	mux.HandleFunc("GET /api/v1/scans/{scan_id}/assessment", s.handleGetAssessment)
+	mux.HandleFunc("GET /api/v1/scans/{scan_id}/reports", s.handleListReports)
 	mux.HandleFunc("POST /api/v1/integrations/github/webhook", s.handleGitHubWebhook)
+	mux.HandleFunc("GET /api/v1/auth/github/login", s.handleGitHubLogin)
+	mux.HandleFunc("GET /api/v1/auth/github/callback", s.handleGitHubCallback)
+	mux.HandleFunc("GET /api/v1/auth/session", s.handleCurrentSession)
+	mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
 
 	// Organization Management
 	mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
@@ -110,11 +157,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/metrics", s.handleMetrics)
 	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/insights", s.handleOrgInsights)
 
-	return requestIDMiddleware(mux)
+	return requestIDMiddleware(recoveryMiddleware(mux))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeData(w, r, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleCreateScan(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +211,7 @@ func (s *Server) handleCreateScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusAccepted, scanResponseFromResult(result))
+	writeData(w, r, http.StatusAccepted, scanResponseFromResult(result))
 }
 
 func (s *Server) resolveScanSource(ctx context.Context, request createScanRequest) (repository.RepositorySource, func(), error) {
@@ -238,7 +285,7 @@ func (s *Server) handleRepositoryScans(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []history.ScanSummary{}
 	}
-	writeJSON(w, http.StatusOK, items)
+	writeData(w, r, http.StatusOK, items)
 }
 
 func (s *Server) handleScanFindings(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +301,7 @@ func (s *Server) handleScanFindings(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []history.FindingDetail{}
 	}
-	writeJSON(w, http.StatusOK, items)
+	writeData(w, r, http.StatusOK, items)
 }
 
 func (s *Server) handleRepositoryMetrics(w http.ResponseWriter, r *http.Request) {
@@ -301,31 +348,36 @@ func (s *Server) handleRepositoryMetrics(w http.ResponseWriter, r *http.Request)
 	if items == nil {
 		items = []history.MetricPoint{}
 	}
-	writeJSON(w, http.StatusOK, items)
+	writeData(w, r, http.StatusOK, items)
 }
 
 func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
-	event, payload, err := ghintegration.ReadWebhook(r, s.githubWebhookSecret)
+	if s.githubWebhookSecret == "" && !s.devHeaderAuth {
+		writeRequestError(w, r, http.StatusServiceUnavailable, "github_webhook_unconfigured", "GitHub webhook secret is required")
+		return
+	}
+	value, err := ghintegration.ReadWebhookRequest(r, s.githubWebhookSecret)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ghintegration.ErrInvalidSignature) {
 			status = http.StatusUnauthorized
 		}
-		writeError(w, status, "github_webhook_invalid", err.Error())
+		writeRequestError(w, r, status, "github_webhook_invalid", err.Error())
 		return
 	}
 
-	switch event {
+	switch value.Event {
 	case "ping":
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "event": event})
+		writeData(w, r, http.StatusOK, map[string]string{"status": "ok", "event": value.Event})
 	case "push":
-		writeJSON(w, http.StatusAccepted, map[string]string{
-			"status":     "accepted",
-			"event":      event,
-			"repository": payload.Repository.FullName,
-		})
+		response, err := s.acceptGitHubPush(r.Context(), value)
+		if err != nil {
+			writeRequestError(w, r, http.StatusInternalServerError, "github_webhook_enqueue_failed", err.Error())
+			return
+		}
+		writeData(w, r, http.StatusAccepted, response)
 	default:
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "ignored", "event": event})
+		writeData(w, r, http.StatusAccepted, map[string]string{"status": "ignored", "event": value.Event})
 	}
 }
 
@@ -373,8 +425,33 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
+func writeData(w http.ResponseWriter, r *http.Request, status int, value any) {
+	writeJSON(w, status, map[string]any{
+		"data": value,
+		"meta": map[string]string{
+			"request_id": requestIDFromContext(r.Context()),
+		},
+		"error": nil,
+	})
+}
+
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, map[string]any{
+		"data": nil,
+		"meta": map[string]string{},
+		"error": map[string]string{
+			"code":    code,
+			"message": message,
+		},
+	})
+}
+
+func writeRequestError(w http.ResponseWriter, r *http.Request, status int, code, message string) {
+	writeJSON(w, status, map[string]any{
+		"data": nil,
+		"meta": map[string]string{
+			"request_id": requestIDFromContext(r.Context()),
+		},
 		"error": map[string]string{
 			"code":    code,
 			"message": message,
@@ -420,6 +497,35 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 		)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				slog.ErrorContext(r.Context(), "panic recovered",
+					slog.String("request_id", requestIDFromContext(r.Context())),
+					slog.Any("panic", recovered),
+				)
+				writeRequestError(w, r, http.StatusInternalServerError, "internal_error", "unexpected server error")
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func sessionStoreFrom(value any) SessionStore {
+	if store, ok := value.(SessionStore); ok {
+		return store
+	}
+	return nil
+}
+
+func integrationStoreFrom(value any) GitHubIntegrationStore {
+	if store, ok := value.(GitHubIntegrationStore); ok {
+		return store
+	}
+	return nil
 }
 
 const defaultActorID = "mock_user"
