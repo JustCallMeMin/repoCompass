@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: RepoCompass Product API
+  version: m4
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check
+      responses:
+        "200": { description: OK }
+  /api/v1/repositories:
+    get:
+      summary: List repositories visible to the current actor
+      responses:
+        "200": { description: Repository list }
+  /api/v1/repositories/{repositoryId}:
+    get:
+      summary: Get repository detail
+      parameters:
+        - { name: repositoryId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Repository detail }
+        "404": { description: Repository not found }
+  /api/v1/repositories/{repositoryId}/scans:
+    get:
+      summary: List repository scans
+      parameters:
+        - { name: repositoryId, in: path, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, default: 20 } }
+      responses:
+        "200": { description: Scan history }
+    post:
+      summary: Trigger repository scan
+      parameters:
+        - { name: repositoryId, in: path, required: true, schema: { type: string } }
+      responses:
+        "202": { description: Scan accepted }
+  /api/v1/scans/{scanId}:
+    get:
+      summary: Get scan detail
+      parameters:
+        - { name: scanId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Scan detail }
+  /api/v1/scans/{scanId}/findings:
+    get:
+      summary: List findings with evidence and recommendations
+      parameters:
+        - { name: scanId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Findings }
+  /api/v1/scans/{scanId}/assessment:
+    get:
+      summary: Get scan assessment
+      parameters:
+        - { name: scanId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Assessment }
+  /api/v1/scans/{scanId}/reports:
+    get:
+      summary: List scan report metadata
+      parameters:
+        - { name: scanId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Reports }
+  /api/v1/scans:
+    post:
+      summary: Backward-compatible direct scan trigger
+      responses:
+        "202": { description: Scan accepted }
+  /api/v1/integrations/github/webhook:
+    post:
+      summary: Accept signed GitHub webhook and enqueue scan job
+      parameters:
+        - { name: X-GitHub-Event, in: header, required: true, schema: { type: string } }
+        - { name: X-GitHub-Delivery, in: header, required: true, schema: { type: string } }
+        - { name: X-Hub-Signature-256, in: header, required: true, schema: { type: string } }
+      responses:
+        "202": { description: Webhook accepted }
+        "401": { description: Invalid signature }
+  /api/v1/auth/github/login:
+    get:
+      summary: Start GitHub OAuth
+      responses:
+        "200": { description: Authorization URL }
+  /api/v1/auth/github/callback:
+    get:
+      summary: Complete GitHub OAuth callback
+      parameters:
+        - { name: code, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Session created }
+  /api/v1/auth/session:
+    get:
+      summary: Get current session
+      responses:
+        "200": { description: Current session }
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke current session
+      responses:
+        "200": { description: Session revoked }
+components:
+  schemas:
+    Envelope:
+      type: object
+      required: [data, meta, error]
+      properties:
+        data: true
+        meta:
+          type: object
+          properties:
+            request_id: { type: string }
+        error:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [code, message]
+              properties:
+                code: { type: string }
+                message: { type: string }

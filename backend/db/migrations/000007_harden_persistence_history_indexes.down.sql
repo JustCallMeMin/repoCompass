@@ -1,4 +1,4 @@
--- Rollback: 000004 harden persistence history indexes and constraints
+-- Rollback: 000007 harden persistence history indexes and constraints
 
 ALTER TABLE scans
     DROP CONSTRAINT IF EXISTS scans_status_check;

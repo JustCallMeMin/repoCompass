@@ -1,4 +1,4 @@
--- Migration: 000004 harden persistence history indexes and constraints
+-- Migration: 000007 harden persistence history indexes and constraints
 -- Adds query-path indexes and scan status constraints required by Milestone 3.
 
 CREATE INDEX IF NOT EXISTS idx_repositories_full_name

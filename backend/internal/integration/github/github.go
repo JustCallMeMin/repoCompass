@@ -95,6 +95,14 @@ type WebhookPayload struct {
 	} `json:"repository"`
 }
 
+// WebhookRequest contains validated webhook metadata and decoded payload.
+type WebhookRequest struct {
+	Event      string
+	DeliveryID string
+	Body       []byte
+	Payload    WebhookPayload
+}
+
 // ReadWebhook validates and decodes a GitHub webhook request.
 func ReadWebhook(r *http.Request, secret string) (string, WebhookPayload, error) {
 	event := r.Header.Get("X-GitHub-Event")
@@ -115,6 +123,32 @@ func ReadWebhook(r *http.Request, secret string) (string, WebhookPayload, error)
 		}
 	}
 	return event, payload, nil
+}
+
+// ReadWebhookRequest validates and decodes a GitHub webhook request with delivery metadata.
+func ReadWebhookRequest(r *http.Request, secret string) (WebhookRequest, error) {
+	event := r.Header.Get("X-GitHub-Event")
+	if event == "" {
+		return WebhookRequest{}, fmt.Errorf("X-GitHub-Event is required")
+	}
+	deliveryID := r.Header.Get("X-GitHub-Delivery")
+	if deliveryID == "" {
+		return WebhookRequest{}, fmt.Errorf("X-GitHub-Delivery is required")
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return WebhookRequest{}, fmt.Errorf("read webhook body: %w", err)
+	}
+	if secret != "" && !validSignature(body, secret, r.Header.Get("X-Hub-Signature-256")) {
+		return WebhookRequest{}, ErrInvalidSignature
+	}
+	var payload WebhookPayload
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &payload); err != nil {
+			return WebhookRequest{}, fmt.Errorf("decode webhook payload: %w", err)
+		}
+	}
+	return WebhookRequest{Event: event, DeliveryID: deliveryID, Body: body, Payload: payload}, nil
 }
 
 func validSignature(body []byte, secret, header string) bool {

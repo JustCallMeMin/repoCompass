@@ -162,6 +162,11 @@ func assertJSONField(t *testing.T, body []byte, key, want string) {
 		t.Fatalf("decode response: %v", err)
 	}
 	got, _ := payload[key].(string)
+	if got == "" {
+		if data, _ := payload["data"].(map[string]any); data != nil {
+			got, _ = data[key].(string)
+		}
+	}
 	if got != want {
 		t.Fatalf("unexpected %s: got %q want %q", key, got, want)
 	}
@@ -182,6 +187,20 @@ type fakeRunner struct {
 	request scan.RunRequest
 	result  scan.RunResult
 	err     error
+}
+
+func testRunResult(scanID, repositoryID string) scan.RunResult {
+	return scan.RunResult{
+		Scan:       scan.Scan{ID: scanID, Status: scan.StatusCompleted},
+		Repository: repository.Repository{ID: repositoryID},
+		Snapshot:   snapshot.RepositorySnapshot{ID: "snap_123"},
+		Summary: scan.Summary{
+			AnalyzersProcessed: 4,
+			FindingCount:       2,
+			AssessmentScore:    82,
+		},
+		Assessment: assessment.Assessment{OverallScore: 82},
+	}
 }
 
 func (r *fakeRunner) Run(_ context.Context, request scan.RunRequest) (scan.RunResult, error) {
@@ -216,4 +235,23 @@ func (r *fakeHistoryReader) ListFindings(context.Context, string) ([]history.Fin
 
 func (r *fakeHistoryReader) ListMetricTrend(context.Context, string, string, int) ([]history.MetricPoint, error) {
 	return r.metrics, nil
+}
+
+func (r *fakeHistoryReader) LatestScan(context.Context, string) (history.ScanSummary, error) {
+	if len(r.scans) == 0 {
+		return history.ScanSummary{}, errNotFound("scan", "latest")
+	}
+	return r.scans[0], nil
+}
+
+func (r *fakeHistoryReader) GetScan(context.Context, string) (scan.Scan, error) {
+	return scan.Scan{ID: "scan_123", Status: scan.StatusCompleted}, nil
+}
+
+func (r *fakeHistoryReader) GetAssessment(context.Context, string) (assessment.Assessment, error) {
+	return assessment.Assessment{OverallScore: 82}, nil
+}
+
+func (r *fakeHistoryReader) ListReports(context.Context, string) ([]map[string]any, error) {
+	return []map[string]any{{"format": "json"}}, nil
 }

@@ -40,6 +40,7 @@ func run(logger *slog.Logger) error {
 
 	server := api.NewServer(runner, store, ghintegration.PublicCloner{}, store, logger)
 	server.SetGitHubWebhookSecret(os.Getenv("GITHUB_WEBHOOK_SECRET"))
+	server.SetDevHeaderAuth(os.Getenv("DEV_HEADER_AUTH") == "true")
 	httpServer := &http.Server{
 		Addr:              ":" + port(),
 		Handler:           server.Handler(),

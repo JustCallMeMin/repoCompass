@@ -268,14 +268,14 @@ func (s *Store) ListPoliciesByOrg(ctx context.Context, orgID string) ([]org.Poli
 // GetRepository returns a repository by ID
 func (s *Store) GetRepository(ctx context.Context, id string) (repository.Repository, error) {
 	query := `
-		SELECT id, name, owner_name, full_name, url, provider, default_branch, primary_ecosystem, is_monorepo, status, organization_id
+		SELECT id, name, owner_name, full_name, url, local_path, provider, default_branch, primary_ecosystem, is_monorepo, status, organization_id
 		FROM repositories
 		WHERE id = $1
 	`
 	var r repository.Repository
 	var providerStr, statusStr string
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
-		&r.ID, &r.Name, &r.OwnerName, &r.FullName, &r.URL, &providerStr, &r.DefaultBranch, &r.PrimaryEcosystem, &r.IsMonorepo, &statusStr, &r.OrganizationID,
+		&r.ID, &r.Name, &r.OwnerName, &r.FullName, &r.URL, &r.LocalPath, &providerStr, &r.DefaultBranch, &r.PrimaryEcosystem, &r.IsMonorepo, &statusStr, &r.OrganizationID,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return repository.Repository{}, fmt.Errorf("postgres: repository not found: %s", id)
@@ -291,7 +291,7 @@ func (s *Store) GetRepository(ctx context.Context, id string) (repository.Reposi
 // ListRepositoriesByOrg returns all repositories for a given organization
 func (s *Store) ListRepositoriesByOrg(ctx context.Context, orgID string) ([]repository.Repository, error) {
 	query := `
-		SELECT id, name, owner_name, full_name, url, provider, default_branch, primary_ecosystem, is_monorepo, status, organization_id
+		SELECT id, name, owner_name, full_name, url, local_path, provider, default_branch, primary_ecosystem, is_monorepo, status, organization_id
 		FROM repositories
 		WHERE organization_id = $1
 		ORDER BY name ASC
@@ -306,7 +306,7 @@ func (s *Store) ListRepositoriesByOrg(ctx context.Context, orgID string) ([]repo
 	for rows.Next() {
 		var r repository.Repository
 		var providerStr, statusStr string
-		if err := rows.Scan(&r.ID, &r.Name, &r.OwnerName, &r.FullName, &r.URL, &providerStr, &r.DefaultBranch, &r.PrimaryEcosystem, &r.IsMonorepo, &statusStr, &r.OrganizationID); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.OwnerName, &r.FullName, &r.URL, &r.LocalPath, &providerStr, &r.DefaultBranch, &r.PrimaryEcosystem, &r.IsMonorepo, &statusStr, &r.OrganizationID); err != nil {
 			return nil, fmt.Errorf("postgres: scan repository: %w", err)
 		}
 		r.Provider = repository.Provider(providerStr)

@@ -52,10 +52,13 @@ make db-seed
 With the database running, you can start the API server:
 
 ```bash
-make server
+DEV_HEADER_AUTH=true make server
 ```
 
 The server listens on `http://localhost:8080`.
+`DEV_HEADER_AUTH=true` enables local `X-User-Id` and `X-Organization-Id`
+headers. Session/OAuth mode uses `GITHUB_OAUTH_CLIENT_ID`,
+`GITHUB_OAUTH_CLIENT_SECRET`, and `GITHUB_OAUTH_REDIRECT_URL`.
 
 ## 4. Running the Frontend
 
