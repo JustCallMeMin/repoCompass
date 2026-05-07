@@ -21,11 +21,14 @@ cp frontend/.env.example frontend/.env.local
 
 ## 2. Database Setup
 
-RepoCompass uses PostgreSQL. You can spin up a local database instance using Docker:
+RepoCompass uses PostgreSQL through Docker Compose for development and tests:
 
 ```bash
 # Start PostgreSQL in the background
 make db-up
+
+# Point local tools at the Dockerized database
+export DATABASE_URL='postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable'
 
 # Apply database migrations
 make migrate-up
@@ -38,6 +41,8 @@ make db-seed
 - `make migrate-status`: Check the current migration version.
 - `make migrate-down`: Revert the last migration.
 - `make db-reset`: Drop the database and re-apply all migrations.
+- `make db-seed`: Create dev/test scan history by running persisted fixture scans.
+- `make db-status`: Check the Dockerized database connection.
 - `make db-down`: Stop and remove the PostgreSQL container.
 
 *(Note: `golang-migrate` is used under the hood in the `backend/scripts/dev` scripts.)*
@@ -80,4 +85,4 @@ make docker-down
 ## Common Friction Points
 
 - **Missing `golang-migrate`**: The migration scripts (`make migrate-*`) rely on `golang-migrate`. If it is not installed globally, the scripts will attempt to use Docker. Ensure Docker is running.
-- **Port Conflicts**: Ensure ports `8080` (API), `3000` (Frontend), and `5432` (PostgreSQL) are not occupied by other services.
+- **Port Conflicts**: Ensure ports `8080` (API), `3000` (Frontend), and `55432` (host PostgreSQL) are not occupied by other services.

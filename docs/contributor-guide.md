@@ -1,10 +1,10 @@
 # Contributor Guide
 
-This guide explains how contributors should approach the repository in its current bootstrap phase.
+This guide explains how contributors should approach the RepoCompass repository.
 
 ## Purpose
 
-RepoCompass is currently focused on foundation work: repository structure, internal documentation, and basic development conventions. Contributors should treat the repository as an early-stage project and keep changes aligned with the current layout.
+RepoCompass has a working backend, CLI, Dockerized PostgreSQL workflow, API surface, and frontend shell. Contributors should keep changes aligned with the current module layout and update docs when workflow or behavior changes.
 
 ## Read First
 
@@ -52,7 +52,7 @@ Current subdirectories under `backend/` include:
 - Read `docs/structure.md` before adding or moving files.
 - Place new files in the existing area that best matches their responsibility.
 - Keep repository-facing documentation in English.
-- Prefer small, reviewable changes that match the current bootstrap scope.
+- Prefer small, reviewable changes that match the current milestone scope.
 
 ## Formatting, Linting, and Testing
 
@@ -83,6 +83,12 @@ For local database workflow, copy `backend/.env.example` to `backend/.env` and u
 
 The underlying scripts under `backend/scripts/dev/` still remain available and continue to auto-load `backend/.env` when it exists.
 
+Default Dockerized database URL for host-side commands:
+
+```bash
+export DATABASE_URL='postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable'
+```
+
 GitHub Actions workflow definition:
 
 - `.github/workflows/ci.yml`
@@ -92,4 +98,4 @@ GitHub Actions workflow definition:
 - Do not add new top-level directories unless there is a clear project-level reason.
 - Prefer extending the existing backend layout before introducing new structural patterns.
 - Update repository-facing docs when the project structure or setup instructions change.
-- Keep bootstrap-phase documentation honest: do not document tools or commands as working if they are not yet implemented.
+- Keep documentation honest: do not document tools or commands as working if they are not implemented and tested.

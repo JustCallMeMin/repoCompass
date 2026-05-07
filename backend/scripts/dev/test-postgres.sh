@@ -19,6 +19,27 @@ cleanup() {
 trap cleanup EXIT
 
 "$SCRIPT_DIR/migrate-up.sh"
+"$SCRIPT_DIR/migrate-down.sh" -all
+"$SCRIPT_DIR/migrate-up.sh"
 
 cd "$BACKEND_DIR"
 go test ./internal/storage/postgres/...
+
+scan_output="$(go run ./cmd/repocompass scan ./testdata/fixtures/local-repositories/good-onboarding-repo --persist)"
+printf '%s\n' "$scan_output"
+
+repository_id="$(printf '%s\n' "$scan_output" | awk -F': ' '/Repository ID:/ {print $2; exit}' | tr -d '[:space:]')"
+scan_id="$(printf '%s\n' "$scan_output" | awk -F': ' '/Scan ID:/ {print $2; exit}' | tr -d '[:space:]')"
+
+if [ "$repository_id" = "" ] || [ "$scan_id" = "" ]; then
+  echo "failed to parse persisted scan IDs from CLI output" >&2
+  exit 1
+fi
+
+go run ./cmd/repocompass history "$repository_id" --format json >/dev/null
+go run ./cmd/repocompass findings "$scan_id" --format json >/dev/null
+
+if DATABASE_URL= go run ./cmd/repocompass history "$repository_id" >/dev/null 2>&1; then
+  echo "expected history command to fail without DATABASE_URL" >&2
+  exit 1
+fi

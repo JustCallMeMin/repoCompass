@@ -19,6 +19,7 @@ import (
 	"github.com/JustCallMeMin/repoCompass/backend/internal/analyzer"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/assessment"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
@@ -348,6 +349,182 @@ func TestPostgresStore_SaveRunResultPersistsAnalysisRows(t *testing.T) {
 	}
 	if len(metricPoints) == 0 || metricPoints[0].Value != 75 {
 		t.Fatalf("expected assessment score metric, got %+v", metricPoints)
+	}
+}
+
+func TestPostgresStore_SaveRunResultValidatesRequiredFields(t *testing.T) {
+	store := pgstore.New(nil)
+	result := validRunResult(t)
+	result.Repository.ID = ""
+
+	err := store.SaveRunResult(context.Background(), result)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if code, ok := rcerr.CodeOf(err); !ok || code != rcerr.CodeDatabaseQueryFailed {
+		t.Fatalf("expected DATABASE_QUERY_FAILED, got code=%q ok=%v err=%v", code, ok, err)
+	}
+}
+
+func TestPostgresStore_SaveRunResultRollsBackOnChildFailure(t *testing.T) {
+	db := openDBConn(t)
+	store := pgstore.New(db)
+	ctx := context.Background()
+	result := validRunResult(t)
+	result.Assessment.Label = "invalid-label"
+
+	err := store.SaveRunResult(ctx, result)
+	if err == nil {
+		t.Fatal("expected SaveRunResult to fail on assessment constraint")
+	}
+	if code, ok := rcerr.CodeOf(err); !ok || code != rcerr.CodeDatabaseConstraintFailed {
+		t.Fatalf("expected DATABASE_CONSTRAINT_FAILED, got code=%q ok=%v err=%v", code, ok, err)
+	}
+
+	for _, query := range []struct {
+		name string
+		sql  string
+		id   string
+	}{
+		{"repository", `SELECT COUNT(*) FROM repositories WHERE id = $1`, result.Repository.ID},
+		{"snapshot", `SELECT COUNT(*) FROM repository_snapshots WHERE id = $1`, result.Snapshot.ID},
+		{"scan", `SELECT COUNT(*) FROM scans WHERE id = $1`, result.Scan.ID},
+		{"finding", `SELECT COUNT(*) FROM findings WHERE id = $1`, result.AnalyzerResults[0].Findings[0].ID},
+	} {
+		var count int
+		if countErr := db.QueryRowContext(ctx, query.sql, query.id).Scan(&count); countErr != nil {
+			t.Fatalf("query %s count: %v", query.name, countErr)
+		}
+		if count != 0 {
+			t.Fatalf("expected rollback to remove %s row, got count %d", query.name, count)
+		}
+	}
+}
+
+func TestPostgresStore_LatestScanAndSnapshotEmptyResults(t *testing.T) {
+	store := openDB(t)
+	ctx := context.Background()
+	repoID := testID("missing-history")
+
+	if _, err := store.LatestScan(ctx, repoID); err == nil {
+		t.Fatal("expected missing latest scan to fail")
+	} else if code, ok := rcerr.CodeOf(err); !ok || code != rcerr.CodeDatabaseNotFound {
+		t.Fatalf("expected DATABASE_NOT_FOUND for latest scan, got code=%q ok=%v err=%v", code, ok, err)
+	}
+	if _, err := store.LatestSnapshot(ctx, repoID); err == nil {
+		t.Fatal("expected missing latest snapshot to fail")
+	} else if code, ok := rcerr.CodeOf(err); !ok || code != rcerr.CodeDatabaseNotFound {
+		t.Fatalf("expected DATABASE_NOT_FOUND for latest snapshot, got code=%q ok=%v err=%v", code, ok, err)
+	}
+}
+
+func TestPostgresStore_LatestSnapshot(t *testing.T) {
+	store := openDB(t)
+	ctx := context.Background()
+	repoID := testID("latest-snapshot-repo")
+	repo := repository.Repository{
+		ID:       repoID,
+		Name:     "latest-snapshot-repo",
+		FullName: "alice/latest-snapshot-repo",
+		Provider: repository.ProviderLocal,
+		Status:   repository.StatusActive,
+	}
+	if err := store.SaveRepository(ctx, repo); err != nil {
+		t.Fatalf("seed repository: %v", err)
+	}
+
+	older := snapshot.RepositorySnapshot{
+		ID:           testID("latest-snapshot-old"),
+		RepositoryID: repo.ID,
+		SourceType:   snapshot.SourceTypeLocal,
+		CapturedAt:   time.Now().UTC().Add(-time.Hour),
+		BranchName:   "main",
+	}
+	newer := snapshot.RepositorySnapshot{
+		ID:           testID("latest-snapshot-new"),
+		RepositoryID: repo.ID,
+		SourceType:   snapshot.SourceTypeLocal,
+		CapturedAt:   time.Now().UTC(),
+		BranchName:   "main",
+		CommitSHA:    "abc123",
+	}
+	if err := store.SaveSnapshot(ctx, older); err != nil {
+		t.Fatalf("seed older snapshot: %v", err)
+	}
+	if err := store.SaveSnapshot(ctx, newer); err != nil {
+		t.Fatalf("seed newer snapshot: %v", err)
+	}
+
+	got, err := store.LatestSnapshot(ctx, repo.ID)
+	if err != nil {
+		t.Fatalf("LatestSnapshot: %v", err)
+	}
+	if got.SnapshotID != newer.ID || got.CommitSHA != "abc123" {
+		t.Fatalf("expected newest snapshot %+v, got %+v", newer, got)
+	}
+}
+
+func validRunResult(t *testing.T) scan.RunResult {
+	t.Helper()
+	now := time.Now().UTC().Truncate(time.Second)
+	repoID := testID("test-repo-valid")
+	scanID := testID("test-scan-valid")
+	snapshotID := testID("test-snap-valid")
+	findingID := testID("test-finding-valid")
+	finding := findings.NewFinding(
+		findingID,
+		"readme.exists",
+		"readme",
+		rules.SeverityHigh,
+		rules.CategoryDocumentation,
+		"README missing",
+		"Repository root has no README.",
+		[]findings.Evidence{
+			findings.NewEvidence(findings.EvidenceTypeFileMissing, "README.md missing.", "README.md", ""),
+			findings.NewEvidence(findings.EvidenceTypeMetadata, "Repository scan metadata captured.", "", "true"),
+		},
+	)
+	finding.Recommendations = []findings.Recommendation{
+		findings.NewRecommendation(findingID, "Add README", "Create README.md.", "Contributors need orientation.", findings.RecommendationPriorityHigh),
+	}
+	return scan.RunResult{
+		Repository: repository.Repository{
+			ID:       repoID,
+			Name:     "valid-repo",
+			FullName: "alice/valid-repo",
+			Provider: repository.ProviderLocal,
+			Status:   repository.StatusActive,
+		},
+		Snapshot: snapshot.RepositorySnapshot{
+			ID:           snapshotID,
+			RepositoryID: repoID,
+			SourceType:   snapshot.SourceTypeLocal,
+			CapturedAt:   now,
+		},
+		Scan: scan.Scan{
+			ID:         scanID,
+			SnapshotID: snapshotID,
+			Status:     scan.StatusCompleted,
+			StartTime:  &now,
+			EndTime:    ptrTime(now.Add(time.Second)),
+		},
+		AnalyzerResults: []analyzer.AnalyzerResult{
+			{
+				AnalyzerID: "readme",
+				Name:       "README Analyzer",
+				Version:    "0.1.0",
+				Status:     analyzer.AnalyzerStatusSuccess,
+				Findings:   []findings.Finding{finding},
+				Metadata:   map[string]string{"readme_present": "false"},
+			},
+		},
+		Assessment: assessment.Assessment{
+			OverallScore:   75,
+			Label:          assessment.ScoreLabelGood,
+			FindingCount:   1,
+			SeverityCounts: map[rules.Severity]int{rules.SeverityHigh: 1},
+			CategoryScores: map[rules.Category]int{rules.CategoryDocumentation: 75},
+		},
 	}
 }
 

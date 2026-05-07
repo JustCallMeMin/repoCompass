@@ -1,118 +1,81 @@
 # Database Directory Guide
 
-This directory contains database-related assets for the RepoCompass backend.
+## Purpose
 
-The database workflow is still in the bootstrap phase. The folder structure exists now so contributors can organize future migration and seed files consistently before the execution tooling is introduced.
+This directory is the database source of truth for RepoCompass backend development. It stores versioned PostgreSQL migrations and development seed workflow assets used by the Dockerized database environment.
 
-## Directory Overview
+## Usage
 
-- `migrations/`: Versioned schema changes for the database
-- `seeds/`: Seed data for bootstrap, development, or test scenarios
+Start Dockerized PostgreSQL, set `DATABASE_URL`, then apply migrations:
+
+```powershell
+make db-up
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable"
+make migrate-up
+make db-status
+```
+
+Reset and seed the development database:
+
+```powershell
+make db-reset
+make db-seed
+```
+
+Rollback all migrations:
+
+```powershell
+make migrate-down -- -all
+```
+
+## Parameters
+
+- `DATABASE_URL`: PostgreSQL connection string used by migration scripts, seed scripts, persisted scans, and history queries.
+- `backend/db/migrations`: ordered SQL migration files consumed by `golang-migrate`.
+- `backend/scripts/dev`: Dockerized database, migration, seed, and PostgreSQL test scripts.
 
 ## Migrations
 
-The `migrations/` directory is reserved for ordered schema changes such as:
+RepoCompass uses SQL migrations run by `golang-migrate`. PostgreSQL runs in Docker for dev/test; `golang-migrate` is only the migration runner.
 
-- creating or altering tables
-- adding indexes or constraints
-- introducing rollback-safe structural changes
+Current migration phases:
 
-Migration tooling and execution workflow will be formalized in `T0-008`. Until then, contributors should treat this directory as the canonical location for future schema migration files, but should not document any migration command as available yet.
+- `000001_create_schema_bootstrap_checks`: verifies migration apply/down plumbing.
+- `000002_create_core_scan_tables`: creates repositories, snapshots, and scans.
+- `000003_create_analysis_persistence_tables`: creates rule, analyzer result, finding, evidence, recommendation, assessment, metric, and report metadata tables.
+- `000004_harden_persistence_history_indexes`: adds M3 history/query-path indexes and scan status constraints.
 
-## Seeds
+Migration conventions:
 
-The `seeds/` directory is reserved for seed data assets such as:
+- Use monotonically increasing numeric prefixes.
+- Always add matching `.up.sql` and `.down.sql` files.
+- Keep schema changes separate from seed data.
+- Add indexes with the query path they protect in mind.
+- Do not edit released migrations; add a new migration instead.
 
-- initial reference data
-- development bootstrap data
-- test-supporting seed datasets
+## Seed Data
 
-The exact execution workflow for seeds is not defined yet. For now, this directory exists to establish the correct location and separation of concerns for future work.
+`make db-seed` runs persisted scans against repository fixtures to create development history data. The seed data is dev/test-only and must not be treated as production data.
 
-## Conventions
+## M3 Schema Decision
 
-- Keep migration filenames ordered and descriptive.
-- Keep seed filenames descriptive and scoped to their purpose.
-- Separate schema changes from data seeding.
-- Do not add usage commands to documentation until migration and seed tooling is implemented.
+Milestone 3 intentionally keeps a pragmatic persistence schema rather than forcing full parity with the broader Physical Database Schema document. The implementation uses text IDs and focused scan-history tables sufficient for CLI/API foundations. Product operation tables such as organizations, users, integrations, and GitHub-specific integration state are deferred to Milestone 4 and later.
 
-## Local Migration Workflow
+## Examples
 
-Migration tooling is now available through the scripts in `backend/scripts/dev/`.
+Run the PostgreSQL integration suite:
 
-Expected setup:
-
-- a running local PostgreSQL instance
-- `DATABASE_URL` exported in the shell or stored in `backend/.env`
-
-Example environment variable:
-
-```bash
-export DATABASE_URL='postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable'
+```powershell
+make db-up
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:55432/repocompass?sslmode=disable"
+make test-postgres
 ```
 
-You can also store local values in `backend/.env` by copying `backend/.env.example`.
+Run a persisted scan and inspect history:
 
-## Local PostgreSQL via Docker Compose
-
-Contributors can start a local PostgreSQL instance with one command:
-
-```bash
-./backend/scripts/dev/db-up.sh
+```powershell
+cd backend
+go run ./cmd/repocompass scan ./testdata/fixtures/local-repositories/good-onboarding-repo --persist
+go run ./cmd/repocompass history <repository-id> --format json
+go run ./cmd/repocompass findings <scan-id> --format json
 ```
-
-This starts a PostgreSQL service with these defaults:
-
-- database: `repocompass`
-- user: `postgres`
-- password: `postgres`
-- host port: `55432`
-- container port: `5432`
-
-To stop the local database:
-
-```bash
-./backend/scripts/dev/db-down.sh
-```
-
-Available scripts:
-
-- `backend/scripts/dev/migrate-up.sh`: apply all pending up migrations
-- `backend/scripts/dev/migrate-down.sh`: apply down migrations
-- `backend/scripts/dev/migrate-status.sh`: show migration version status
-- `backend/scripts/dev/db-up.sh`: start local PostgreSQL with Docker Compose
-- `backend/scripts/dev/db-down.sh`: stop the local Docker Compose PostgreSQL service
-
-Equivalent Make aliases:
-
-- `make migrate-up`
-- `make migrate-down`
-- `make migrate-status`
-- `make db-up`
-- `make db-down`
-
-Notes:
-
-- these scripts use `golang-migrate`
-- the scripts target `backend/db/migrations`
-- the scripts auto-load `backend/.env` when present
-- local PostgreSQL provisioning is available through Docker Compose in this task
-- `migrate-status.sh` maps to the upstream `version` command because `golang-migrate` does not expose a literal `status` subcommand
-
-## Current Status
-
-- `migrations/` now includes a bootstrap validation migration
-- `seeds/` exists and is intentionally empty except for placeholder tracking
-- migration tooling is available through `backend/scripts/dev/`
-- seed execution tooling is not implemented in this task
-
-## Bootstrap Validation Migration
-
-The first migration in this repository is intentionally minimal and exists only to validate the migration toolchain and rollback workflow.
-
-Current bootstrap migration:
-
-- `000001_create_schema_bootstrap_checks.up.sql`
-- `000001_create_schema_bootstrap_checks.down.sql`
-
-This migration creates and removes a small table named `schema_bootstrap_checks`. It is infrastructure-focused and should not be treated as the first real RepoCompass domain schema.

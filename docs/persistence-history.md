@@ -30,6 +30,10 @@ go run ./cmd/repocompass findings <scan-id> --format json
 
 Core identity tables store repositories, snapshots, and scans. Analysis tables store rule sets, rules, analyzer results, findings, finding evidence, recommendations, assessments, metric snapshots, and report metadata.
 
+## M3 Schema Decision
+
+Milestone 3 uses a pragmatic persistence schema with text IDs and scan-history-focused tables. This intentionally differs from the broader product Physical Database Schema in a few places so the persisted CLI/API foundation can remain small and usable. Product operation tables such as organizations, users, integrations, and GitHub integration state are deferred to later milestones.
+
 ## Rollback
 
 Use migration down scripts for rollback:

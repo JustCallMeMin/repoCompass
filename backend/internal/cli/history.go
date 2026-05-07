@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/history"
 	pgstore "github.com/JustCallMeMin/repoCompass/backend/internal/storage/postgres"
 	"github.com/spf13/cobra"
 )
@@ -107,7 +108,7 @@ func newFindingsCmd() *cobra.Command {
 }
 
 // openHistoryStore opens the PostgreSQL store required by history commands.
-func openHistoryStore(ctx context.Context) (*pgstore.Store, func(), error) {
+func openHistoryStore(ctx context.Context) (history.Reader, func(), error) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		return nil, func() {}, fmt.Errorf("DATABASE_URL is required")

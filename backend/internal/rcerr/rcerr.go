@@ -31,6 +31,24 @@ const (
 
 	// CodeInternalError is returned for unexpected internal failures.
 	CodeInternalError ErrorCode = "INTERNAL_ERROR"
+
+	// CodeDatabaseUnavailable is returned when PostgreSQL cannot be reached.
+	CodeDatabaseUnavailable ErrorCode = "DATABASE_UNAVAILABLE"
+
+	// CodeDatabaseConstraintFailed is returned when PostgreSQL rejects data due
+	// to a schema constraint such as a foreign key, unique, or check violation.
+	CodeDatabaseConstraintFailed ErrorCode = "DATABASE_CONSTRAINT_FAILED"
+
+	// CodeDatabaseQueryFailed is returned for database read/write failures that
+	// are not classified more specifically.
+	CodeDatabaseQueryFailed ErrorCode = "DATABASE_QUERY_FAILED"
+
+	// CodeDatabaseNotFound is returned when a requested persisted row is absent.
+	CodeDatabaseNotFound ErrorCode = "DATABASE_NOT_FOUND"
+
+	// CodeDatabaseTimeout is returned when a database operation times out or is
+	// cancelled through context propagation.
+	CodeDatabaseTimeout ErrorCode = "DATABASE_TIMEOUT"
 )
 
 // Error is a structured error carrying a machine-readable ErrorCode, a

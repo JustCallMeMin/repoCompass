@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" driver
 
 	"github.com/JustCallMeMin/repoCompass/backend/internal/analyzer"
@@ -24,6 +25,7 @@ import (
 	"github.com/JustCallMeMin/repoCompass/backend/internal/findings"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/history"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/org"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/rcerr"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/rules"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
@@ -40,13 +42,13 @@ type Store struct {
 func Open(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: open: %w", err)
+		return nil, databaseError("open connection pool", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("postgres: ping: %w", err)
+		return nil, databaseError("ping database", err)
 	}
 	return db, nil
 }
@@ -58,11 +60,13 @@ func New(db *sql.DB) *Store {
 
 // SaveRepository inserts or updates a repository.
 func (s *Store) SaveRepository(ctx context.Context, repo repository.Repository) error {
+	if err := validateRepository(repo); err != nil {
+		return err
+	}
 	orgID := repo.OrganizationID
 	if orgID == "" {
 		orgID = org.DefaultPersonalOrgID
 	}
-
 	const q = `
 INSERT INTO repositories (
 	id, name, owner_name, full_name, url, provider,
@@ -100,16 +104,19 @@ ON CONFLICT (id) DO UPDATE SET
 		orgID,
 	)
 	if err != nil {
-		return fmt.Errorf("postgres: SaveRepository: %w", err)
+		return databaseError("save repository", err)
 	}
 	return nil
 }
 
 // SaveSnapshot inserts a new repository_snapshot row.
 func (s *Store) SaveSnapshot(ctx context.Context, snap snapshot.RepositorySnapshot) error {
+	if err := validateSnapshot(snap); err != nil {
+		return err
+	}
 	metadata, err := marshalMetadata(snap.SnapshotMetadata)
 	if err != nil {
-		return fmt.Errorf("postgres: SaveSnapshot: marshal metadata: %w", err)
+		return databaseError("marshal snapshot metadata", err)
 	}
 
 	const q = `
@@ -132,13 +139,16 @@ INSERT INTO repository_snapshots (
 		metadata,
 	)
 	if err != nil {
-		return fmt.Errorf("postgres: SaveSnapshot: %w", err)
+		return databaseError("save snapshot", err)
 	}
 	return nil
 }
 
 // SaveScan inserts a new scan row with its initial state.
 func (s *Store) SaveScan(ctx context.Context, sc scan.Scan) error {
+	if err := validateScan(sc); err != nil {
+		return err
+	}
 	const q = `
 INSERT INTO scans (
 	id, snapshot_id, status, start_time, end_time, error_details
@@ -155,7 +165,7 @@ INSERT INTO scans (
 		sc.ErrorDetails,
 	)
 	if err != nil {
-		return fmt.Errorf("postgres: SaveScan: %w", err)
+		return databaseError("save scan", err)
 	}
 	return nil
 }
@@ -176,16 +186,19 @@ WHERE id = $4`
 		sc.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("postgres: UpdateScan: %w", err)
+		return databaseError("update scan", err)
 	}
 	return nil
 }
 
 // SaveRunResult persists a completed scan result in a single transaction.
 func (s *Store) SaveRunResult(ctx context.Context, result scan.RunResult) error {
+	if err := validateRunResult(result); err != nil {
+		return err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("postgres: SaveRunResult: begin transaction: %w", err)
+		return databaseError("begin scan result transaction", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -218,7 +231,7 @@ func (s *Store) SaveRunResult(ctx context.Context, result scan.RunResult) error 
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("postgres: SaveRunResult: commit transaction: %w", err)
+		return databaseError("commit scan result transaction", err)
 	}
 	return nil
 }
@@ -238,7 +251,7 @@ WHERE rs.repository_id = $1
 ORDER BY COALESCE(s.end_time, s.start_time, s.created_at) DESC
 LIMIT $2`, repositoryID, limit)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: ListScanHistory: %w", err)
+		return nil, databaseError("list scan history", err)
 	}
 	defer rows.Close()
 
@@ -256,12 +269,12 @@ LIMIT $2`, repositoryID, limit)
 			&item.Label,
 			&item.FindingCount,
 		); err != nil {
-			return nil, fmt.Errorf("postgres: ListScanHistory: scan row: %w", err)
+			return nil, databaseError("scan history row", err)
 		}
 		summaries = append(summaries, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("postgres: ListScanHistory: rows: %w", err)
+		return nil, databaseError("scan history rows", err)
 	}
 	return summaries, nil
 }
@@ -273,9 +286,32 @@ func (s *Store) LatestScan(ctx context.Context, repositoryID string) (history.Sc
 		return history.ScanSummary{}, err
 	}
 	if len(items) == 0 {
-		return history.ScanSummary{}, sql.ErrNoRows
+		return history.ScanSummary{}, databaseError("latest scan", sql.ErrNoRows)
 	}
 	return items[0], nil
+}
+
+// LatestSnapshot returns the newest persisted snapshot for one repository.
+func (s *Store) LatestSnapshot(ctx context.Context, repositoryID string) (history.SnapshotSummary, error) {
+	var item history.SnapshotSummary
+	err := s.db.QueryRowContext(ctx, `
+SELECT id, repository_id, source_type, branch_name, commit_sha, tree_reference, captured_at
+FROM repository_snapshots
+WHERE repository_id = $1
+ORDER BY captured_at DESC
+LIMIT 1`, repositoryID).Scan(
+		&item.SnapshotID,
+		&item.RepositoryID,
+		&item.SourceType,
+		&item.BranchName,
+		&item.CommitSHA,
+		&item.TreeReference,
+		&item.CapturedAt,
+	)
+	if err != nil {
+		return history.SnapshotSummary{}, databaseError("latest snapshot", err)
+	}
+	return item, nil
 }
 
 // ListFindings returns findings with evidence and recommendations for one scan.
@@ -286,7 +322,7 @@ FROM findings
 WHERE scan_id = $1
 ORDER BY severity DESC, id ASC`, scanID)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: ListFindings: %w", err)
+		return nil, databaseError("list findings", err)
 	}
 	defer rows.Close()
 
@@ -304,7 +340,7 @@ ORDER BY severity DESC, id ASC`, scanID)
 			&item.Category,
 			&item.Status,
 		); err != nil {
-			return nil, fmt.Errorf("postgres: ListFindings: scan row: %w", err)
+			return nil, databaseError("finding row", err)
 		}
 		evidence, err := s.listEvidence(ctx, item.ID)
 		if err != nil {
@@ -319,7 +355,7 @@ ORDER BY severity DESC, id ASC`, scanID)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("postgres: ListFindings: rows: %w", err)
+		return nil, databaseError("finding rows", err)
 	}
 	return items, nil
 }
@@ -338,7 +374,7 @@ WHERE rs.repository_id = $1 AND ms.metric_key = $2
 ORDER BY COALESCE(sc.end_time, sc.start_time, sc.created_at) ASC
 LIMIT $3`, repositoryID, metricKey, limit)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: ListMetricTrend: %w", err)
+		return nil, databaseError("list metric trend", err)
 	}
 	defer rows.Close()
 
@@ -353,12 +389,12 @@ LIMIT $3`, repositoryID, metricKey, limit)
 			&point.CompletedAt,
 			&point.RepositoryID,
 		); err != nil {
-			return nil, fmt.Errorf("postgres: ListMetricTrend: scan row: %w", err)
+			return nil, databaseError("metric trend row", err)
 		}
 		points = append(points, point)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("postgres: ListMetricTrend: rows: %w", err)
+		return nil, databaseError("metric trend rows", err)
 	}
 	return points, nil
 }
@@ -378,11 +414,13 @@ type dbExecutor interface {
 
 // saveRepository is the internal transaction-aware version.
 func saveRepository(ctx context.Context, exec dbExecutor, repo repository.Repository) error {
+	if err := validateRepository(repo); err != nil {
+		return err
+	}
 	orgID := repo.OrganizationID
 	if orgID == "" {
 		orgID = org.DefaultPersonalOrgID
 	}
-
 	const q = `
 INSERT INTO repositories (
 	id, name, owner_name, full_name, url, provider,
@@ -478,6 +516,9 @@ ORDER BY id ASC`, findingID)
 
 // saveSnapshot upserts a repository snapshot using the provided executor.
 func saveSnapshot(ctx context.Context, exec dbExecutor, snap snapshot.RepositorySnapshot) error {
+	if err := validateSnapshot(snap); err != nil {
+		return err
+	}
 	metadata, err := marshalMetadata(snap.SnapshotMetadata)
 	if err != nil {
 		return fmt.Errorf("postgres: save snapshot: marshal metadata: %w", err)
@@ -516,6 +557,9 @@ ON CONFLICT (id) DO UPDATE SET
 
 // saveScan upserts one scan row using the provided executor.
 func saveScan(ctx context.Context, exec dbExecutor, sc scan.Scan) error {
+	if err := validateScan(sc); err != nil {
+		return err
+	}
 	const q = `
 INSERT INTO scans (
 	id, snapshot_id, status, start_time, end_time, error_details
@@ -614,6 +658,9 @@ ON CONFLICT (scan_id, analyzer_id) DO UPDATE SET
 // saveFindings upserts findings and replaces child evidence/recommendation rows.
 func saveFindings(ctx context.Context, exec dbExecutor, scanID string, values []findings.Finding) error {
 	for _, finding := range values {
+		if err := validateFinding(finding); err != nil {
+			return err
+		}
 		if _, err := exec.ExecContext(ctx, `
 INSERT INTO findings (
 	id, scan_id, rule_id, analyzer_id, severity, title, message, category, status
@@ -702,7 +749,7 @@ ON CONFLICT (scan_id) DO UPDATE SET
 		categoryScores,
 		categoryBreakdown,
 	); err != nil {
-		return fmt.Errorf("postgres: save assessment: %w", err)
+		return databaseError("save assessment", err)
 	}
 	return nil
 }
@@ -819,4 +866,146 @@ func (s *Store) GetActiveAssessmentPolicy(ctx context.Context, orgID string) (as
 		return assessment.OrgPolicy{}, err
 	}
 	return policy, nil
+}
+
+// databaseError maps database and context failures to stable RepoCompass error codes.
+func databaseError(operation string, err error) error {
+	if err == nil {
+		return nil
+	}
+	code := rcerr.CodeDatabaseQueryFailed
+	message := operation + " failed"
+	if errors.Is(err, sql.ErrNoRows) {
+		code = rcerr.CodeDatabaseNotFound
+		message = operation + " not found"
+	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		code = rcerr.CodeDatabaseTimeout
+		message = operation + " timed out"
+	} else {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23503", "23505", "23514", "23502":
+				code = rcerr.CodeDatabaseConstraintFailed
+			case "08000", "08001", "08003", "08006":
+				code = rcerr.CodeDatabaseUnavailable
+			}
+		}
+	}
+	return rcerr.New(code, message, err)
+}
+
+// validationError returns a stable database query error before invalid data reaches Postgres.
+func validationError(message string) error {
+	return rcerr.New(rcerr.CodeDatabaseQueryFailed, message, nil)
+}
+
+// validateRunResult verifies required persisted aggregate fields before writing.
+func validateRunResult(result scan.RunResult) error {
+	if err := validateRepository(result.Repository); err != nil {
+		return err
+	}
+	if err := validateSnapshot(result.Snapshot); err != nil {
+		return err
+	}
+	if err := validateScan(result.Scan); err != nil {
+		return err
+	}
+	if result.Snapshot.RepositoryID != result.Repository.ID {
+		return validationError("snapshot repository id must match repository id")
+	}
+	if result.Scan.SnapshotID != result.Snapshot.ID {
+		return validationError("scan snapshot id must match snapshot id")
+	}
+	for _, analyzerResult := range result.AnalyzerResults {
+		if analyzerResult.AnalyzerID == "" {
+			return validationError("analyzer result id is required")
+		}
+		if analyzerResult.Name == "" {
+			return validationError("analyzer result name is required")
+		}
+		for _, finding := range analyzerResult.Findings {
+			if err := validateFinding(finding); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateRepository verifies required repository row fields.
+func validateRepository(repo repository.Repository) error {
+	if repo.ID == "" {
+		return validationError("repository id is required")
+	}
+	if repo.Name == "" {
+		return validationError("repository name is required")
+	}
+	if repo.FullName == "" {
+		return validationError("repository full name is required")
+	}
+	if repo.Provider == "" {
+		return validationError("repository provider is required")
+	}
+	if repo.Status == "" {
+		return validationError("repository status is required")
+	}
+	return nil
+}
+
+// validateSnapshot verifies required snapshot row fields.
+func validateSnapshot(snap snapshot.RepositorySnapshot) error {
+	if snap.ID == "" {
+		return validationError("snapshot id is required")
+	}
+	if snap.RepositoryID == "" {
+		return validationError("snapshot repository id is required")
+	}
+	if snap.SourceType == "" {
+		return validationError("snapshot source type is required")
+	}
+	if snap.CapturedAt.IsZero() {
+		return validationError("snapshot captured_at is required")
+	}
+	return nil
+}
+
+// validateScan verifies required scan row fields.
+func validateScan(sc scan.Scan) error {
+	if sc.ID == "" {
+		return validationError("scan id is required")
+	}
+	if sc.SnapshotID == "" {
+		return validationError("scan snapshot id is required")
+	}
+	if sc.Status == "" {
+		return validationError("scan status is required")
+	}
+	return nil
+}
+
+// validateFinding verifies required finding row fields.
+func validateFinding(finding findings.Finding) error {
+	if finding.ID == "" {
+		return validationError("finding id is required")
+	}
+	if finding.RuleID == "" {
+		return validationError("finding rule id is required")
+	}
+	if finding.AnalyzerID == "" {
+		return validationError("finding analyzer id is required")
+	}
+	if finding.Severity == "" {
+		return validationError("finding severity is required")
+	}
+	if finding.Title == "" {
+		return validationError("finding title is required")
+	}
+	if finding.Message == "" {
+		return validationError("finding message is required")
+	}
+	if finding.Category == "" {
+		return validationError("finding category is required")
+	}
+	return nil
 }
