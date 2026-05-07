@@ -19,6 +19,11 @@ The repository is organized as a multi-area project, with the backend implementa
 - `docs/persistence-history.md`: PostgreSQL persistence and scan history workflow.
 - `docs/product-api.md`: Product API and GitHub integration reference.
 - `docs/docker-runtime.md`: Local Docker product runtime guide.
+- `docs/api-organizations.md`: Organization API and RBAC reference.
+- `docs/organization-management.md`: Organization scope, roles, route map, and data model.
+- `docs/performance.md`: Query hot paths, indexing notes, and caching decisions.
+- `docs/operations-runbook.md`: Local runtime, migration, smoke check, hotfix, and rollback procedures.
+- `docs/security-threat-model.md`: Security threat model for organization management and product-hardening surfaces.
 - `docker-compose.yml`: Local Docker Compose stack for PostgreSQL, API, and dashboard.
 - `.github/workflows/ci.yml`: CI workflow for backend, frontend, PostgreSQL integration, and Docker runtime smoke checks.
 

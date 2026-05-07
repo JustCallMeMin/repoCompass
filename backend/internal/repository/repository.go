@@ -12,9 +12,10 @@ const (
 // RepositorySource describes the user-provided input before it is resolved into
 // repository metadata.
 type RepositorySource struct {
-	Type SourceType
-	Path string
-	URL  string
+	Type           SourceType
+	Path           string
+	URL            string
+	OrganizationID string
 }
 
 // RepositoryResolution contains repository metadata plus snapshot seed metadata.

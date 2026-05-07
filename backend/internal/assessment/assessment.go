@@ -51,8 +51,14 @@ func NewEngine() Engine {
 	return Engine{}
 }
 
+// OrgPolicy represents organization-level assessment constraints.
+type OrgPolicy struct {
+	MinimumScore  int  `json:"minimum_score,omitempty"`
+	RequireReadme bool `json:"require_readme,omitempty"`
+}
+
 // Assess calculates an assessment from validated findings.
-func (Engine) Assess(values []findings.Finding) (Assessment, error) {
+func (Engine) Assess(values []findings.Finding, policy OrgPolicy) (Assessment, error) {
 	for _, finding := range values {
 		if err := finding.Validate(); err != nil {
 			return Assessment{}, fmt.Errorf("invalid finding %q: %w", finding.ID, err)
@@ -67,9 +73,30 @@ func (Engine) Assess(values []findings.Finding) (Assessment, error) {
 	}
 
 	overallScore := score(values)
+
+	hasMissingReadme := false
+	for _, finding := range values {
+		if finding.RuleID == "readme.exists" {
+			hasMissingReadme = true
+			break
+		}
+	}
+
+	if policy.RequireReadme && hasMissingReadme {
+		overallScore -= 50
+		if overallScore < 0 {
+			overallScore = 0
+		}
+	}
+
+	label := labelForScore(overallScore)
+	if policy.MinimumScore > 0 && overallScore < policy.MinimumScore {
+		label = ScoreLabelPoor
+	}
+
 	assessment := Assessment{
 		OverallScore:      overallScore,
-		Label:             labelForScore(overallScore),
+		Label:             label,
 		FindingCount:      len(values),
 		SeverityCounts:    severityCounts,
 		CategoryScores:    make(map[rules.Category]int, len(categoryFindings)),

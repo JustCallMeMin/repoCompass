@@ -189,7 +189,16 @@ func (r *LocalScanRunner) Run(ctx context.Context, request RunRequest) (RunResul
 	}
 
 	allFindings := collectFindings(analyzerResults)
-	scanAssessment, err := assessment.NewEngine().Assess(allFindings)
+
+	// Fetch active policy for the org. Ignore errors as policy might be missing or persistence disabled.
+	var policy assessment.OrgPolicy
+	if r.store != nil {
+		if p, err := r.store.GetActiveAssessmentPolicy(ctx, request.Source.OrganizationID); err == nil {
+			policy = p
+		}
+	}
+
+	scanAssessment, err := assessment.NewEngine().Assess(allFindings, policy)
 	if err != nil {
 		s.ErrorDetails = err.Error()
 		_ = s.TransitionTo(StatusFailed)

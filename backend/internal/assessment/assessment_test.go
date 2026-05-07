@@ -9,7 +9,7 @@ import (
 )
 
 func TestEngineAssessNoFindingsGivesExcellentScore(t *testing.T) {
-	result, err := assessment.NewEngine().Assess(nil)
+	result, err := assessment.NewEngine().Assess(nil, assessment.OrgPolicy{})
 	if err != nil {
 		t.Fatalf("expected assessment to succeed: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestEngineAssessAppliesSeverityPenalties(t *testing.T) {
 		validFinding("high", rules.SeverityHigh, rules.CategoryDocumentation),
 		validFinding("medium", rules.SeverityMedium, rules.CategoryCI),
 		validFinding("low", rules.SeverityLow, rules.CategoryWorkflow),
-	})
+	}, assessment.OrgPolicy{})
 	if err != nil {
 		t.Fatalf("expected assessment to succeed: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestEngineAssessFloorsScoreAtZero(t *testing.T) {
 		values = append(values, validFinding(string(rune('a'+i)), rules.SeverityHigh, rules.CategoryDocumentation))
 	}
 
-	result, err := assessment.NewEngine().Assess(values)
+	result, err := assessment.NewEngine().Assess(values, assessment.OrgPolicy{})
 	if err != nil {
 		t.Fatalf("expected assessment to succeed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestEngineAssessBuildsCategoryBreakdown(t *testing.T) {
 		validFinding("doc", rules.SeverityHigh, rules.CategoryDocumentation),
 		validFinding("ci", rules.SeverityMedium, rules.CategoryCI),
 		validFinding("workflow", rules.SeverityLow, rules.CategoryWorkflow),
-	})
+	}, assessment.OrgPolicy{})
 	if err != nil {
 		t.Fatalf("expected assessment to succeed: %v", err)
 	}
@@ -94,8 +94,39 @@ func TestEngineAssessBuildsCategoryBreakdown(t *testing.T) {
 	}
 }
 
+func TestEngineAssessAppliesOrgPolicy(t *testing.T) {
+	readmeFinding := validFinding("readme", rules.SeverityLow, rules.CategoryDocumentation)
+	readmeFinding.RuleID = "readme.exists"
+
+	// Missing README but policy requires it -> extra -50 penalty.
+	result, _ := assessment.NewEngine().Assess([]findings.Finding{readmeFinding}, assessment.OrgPolicy{
+		RequireReadme: true,
+	})
+	if result.OverallScore != 45 { // 100 - 5 (low) - 50
+		t.Fatalf("expected score 45 with RequireReadme, got %d", result.OverallScore)
+	}
+
+	// Score >= MinimumScore -> normal label.
+	result2, _ := assessment.NewEngine().Assess(nil, assessment.OrgPolicy{
+		MinimumScore: 90,
+	})
+	if result2.Label != assessment.ScoreLabelExcellent {
+		t.Fatalf("expected label excellent, got %q", result2.Label)
+	}
+
+	// Score < MinimumScore -> poor label.
+	result3, _ := assessment.NewEngine().Assess([]findings.Finding{
+		validFinding("high", rules.SeverityHigh, rules.CategoryDocumentation), // Score 75
+	}, assessment.OrgPolicy{
+		MinimumScore: 80,
+	})
+	if result3.Label != assessment.ScoreLabelPoor {
+		t.Fatalf("expected label poor, got %q", result3.Label)
+	}
+}
+
 func TestEngineAssessRejectsInvalidFinding(t *testing.T) {
-	_, err := assessment.NewEngine().Assess([]findings.Finding{{ID: "invalid"}})
+	_, err := assessment.NewEngine().Assess([]findings.Finding{{ID: "invalid"}}, assessment.OrgPolicy{})
 	if err == nil {
 		t.Fatal("expected invalid finding to fail")
 	}
