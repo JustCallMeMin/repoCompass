@@ -19,7 +19,7 @@ export default function OrgMembersPage() {
   function load() {
     if (!orgId) return;
     listMembers(orgId)
-      .then((res) => setMembers(res.data ?? []))
+      .then((res) => setMembers(res ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }

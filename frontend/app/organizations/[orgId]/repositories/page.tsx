@@ -15,7 +15,7 @@ export default function OrgRepositoriesPage() {
   useEffect(() => {
     if (!orgId) return;
     listOrgRepositories(orgId)
-      .then((data) => setRepos(data.data ?? []))
+      .then((data) => setRepos(data ?? []))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [orgId]);

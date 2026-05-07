@@ -21,7 +21,7 @@ export function OrgSwitcher() {
   useEffect(() => {
     listOrganizations()
       .then((res) => {
-        const list = [PERSONAL_ORG, ...(res.data ?? [])];
+        const list = [PERSONAL_ORG, ...(res ?? [])];
         setOrgs(list);
       })
       .catch(() => {/* API unavailable — show only personal org */});

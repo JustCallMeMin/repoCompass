@@ -12,7 +12,7 @@ export default function OrganizationsPage() {
 
   useEffect(() => {
     listOrganizations()
-      .then((res) => setOrgs(res.data ?? []))
+      .then((res) => setOrgs(res ?? []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);

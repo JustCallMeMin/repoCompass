@@ -1,4 +1,4 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build docker-build docker-up docker-down docker-logs docker-ps build demo
+.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build dashboard-dev dashboard-smoke docker-build docker-up docker-down docker-logs docker-ps build demo
 
 help:
 	@printf "Available targets:\n"
@@ -18,6 +18,8 @@ help:
 	@printf "  make frontend-install\n"
 	@printf "  make frontend-dev\n"
 	@printf "  make frontend-build\n"
+	@printf "  make dashboard-dev\n"
+	@printf "  make dashboard-smoke\n"
 	@printf "  make docker-build\n"
 	@printf "  make docker-up\n"
 	@printf "  make docker-down\n"
@@ -73,6 +75,12 @@ frontend-dev:
 
 frontend-build:
 	cd frontend && npm run build
+
+dashboard-dev:
+	sh ./scripts/dev-dashboard.sh
+
+dashboard-smoke:
+	sh ./scripts/m5-dashboard-smoke.sh
 
 docker-build:
 	docker compose build

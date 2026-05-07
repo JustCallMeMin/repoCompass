@@ -28,8 +28,8 @@ export default function OrgPoliciesPage() {
     if (!orgId) return;
     Promise.all([listPolicies(orgId), listMembers(orgId)])
       .then(([policyRes, memberRes]) => {
-        setPolicies(policyRes.data ?? []);
-        setCurrentRole(memberRes.data?.find((m) => m.user_id === currentUserId)?.role);
+        setPolicies(policyRes ?? []);
+        setCurrentRole(memberRes.find((m) => m.user_id === currentUserId)?.role);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));

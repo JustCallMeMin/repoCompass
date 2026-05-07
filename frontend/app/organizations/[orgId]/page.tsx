@@ -29,9 +29,9 @@ export default function OrgOverviewPage() {
       listMembers(orgId).catch(() => ({ data: [] as Membership[] })),
     ])
       .then(([orgRes, insRes, memRes]) => {
-        setOrg(orgRes.data);
-        setInsights(insRes?.data ?? null);
-        setMembers(memRes.data ?? []);
+        setOrg(orgRes);
+        setInsights(insRes ?? null);
+        setMembers(Array.isArray(memRes) ? memRes : []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));

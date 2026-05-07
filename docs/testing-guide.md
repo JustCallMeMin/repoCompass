@@ -32,6 +32,8 @@ The frontend uses standard npm scripts.
 ```bash
 cd frontend
 npm run lint
+npm run typecheck
+npm test
 npm audit --audit-level=moderate
 npm run build
 ```

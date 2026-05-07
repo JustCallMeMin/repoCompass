@@ -71,6 +71,8 @@ make frontend-dev
 
 The dashboard will be available at `http://localhost:3000`.
 
+For the full Milestone 5 dashboard flow, see [dashboard-m5.md](dashboard-m5.md).
+
 ## 5. Docker Runtime
 
 If you want to run the entire stack (API, Frontend, Database) via Docker Compose without installing Go or Node.js locally:
