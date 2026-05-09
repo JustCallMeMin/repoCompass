@@ -107,6 +107,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_WEBHOOK_SECRET: ci_webhook_secret_not_for_production
+      DEV_HEADER_AUTH: "true"
+      API_USER_ID: mock_user
+      API_ORG_ID: 00000000-0000-0000-0000-000000000000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -147,8 +150,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          auth_headers=(
+            -H "X-User-Id: ${API_USER_ID}"
+            -H "X-Organization-Id: ${API_ORG_ID}"
+          )
 
           local_response="$(curl -fsS -X POST http://localhost:8080/api/v1/scans \
+            "${auth_headers[@]}" \
             -H 'Content-Type: application/json' \
             -d '{"source_type":"local","path":"/workspace/backend/testdata/fixtures/local-repositories/good-onboarding-repo"}')"
           echo "$local_response"
@@ -156,16 +164,17 @@ jobs:
           repository_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["repository_id"])' <<<"$local_response")"
           scan_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["scan_id"])' <<<"$local_response")"
 
-          curl -fsS "http://localhost:8080/api/v1/repositories/${repository_id}" | python3 -m json.tool
-          curl -fsS -X POST "http://localhost:8080/api/v1/repositories/${repository_id}/scans" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/scans/${scan_id}" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/repositories/${repository_id}/scans" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/scans/${scan_id}/findings" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/scans/${scan_id}/assessment" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/scans/${scan_id}/reports" | python3 -m json.tool
-          curl -fsS "http://localhost:8080/api/v1/repositories/${repository_id}/metrics" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/repositories/${repository_id}" | python3 -m json.tool
+          curl -fsS -X POST "${auth_headers[@]}" "http://localhost:8080/api/v1/repositories/${repository_id}/scans" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/scans/${scan_id}" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/repositories/${repository_id}/scans" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/scans/${scan_id}/findings" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/scans/${scan_id}/assessment" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/scans/${scan_id}/reports" | python3 -m json.tool
+          curl -fsS "${auth_headers[@]}" "http://localhost:8080/api/v1/repositories/${repository_id}/metrics" | python3 -m json.tool
 
           github_response="$(curl -fsS -X POST http://localhost:8080/api/v1/scans \
+            "${auth_headers[@]}" \
             -H 'Content-Type: application/json' \
             -d '{"source_type":"github","url":"https://github.com/octocat/Hello-World"}')"
           echo "$github_response" | python3 -m json.tool
