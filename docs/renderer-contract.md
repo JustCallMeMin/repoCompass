@@ -18,8 +18,14 @@ type Renderer interface {
 1. Create a new struct that implements the `report.Renderer` interface.
 2. Register the renderer with the `report.Registry` (if applicable).
 3. Ensure that your output is deterministic.
-4. Add a "Golden Test" for your renderer to catch regressions when the output changes.
+4. Add deterministic renderer tests. If output is large or fixture-like, use a golden file and review the diff when it changes.
 
 ## Minimal Example
 
-Check out the runnable example Renderer in `backend/internal/report/example/renderer.go`.
+Check out the runnable example renderer in `backend/internal/report/example/renderer.go`.
+Run its tests with:
+
+```bash
+cd backend
+go test ./internal/report/example
+```

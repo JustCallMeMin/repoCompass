@@ -1,8 +1,8 @@
 # Finding, Evidence, And Recommendation Taxonomy
 
-This document defines the first RepoCompass taxonomy for findings, evidence,
-and recommendations. It is contributor-facing guidance for Milestone 2
-analyzers and report renderers.
+This document defines the RepoCompass taxonomy for findings, evidence, and
+recommendations. It is contributor-facing guidance for analyzers and report
+renderers.
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Valid facts include:
 - scan configuration enables a rule
 
 Analyzers must not create findings from guesses, generated opinions, or AI
-judgment in Milestone 2.
+judgment.
 
 ## Finding
 

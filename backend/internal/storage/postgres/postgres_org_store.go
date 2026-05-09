@@ -203,14 +203,22 @@ func (s *Store) GetConfiguration(ctx context.Context, orgID string) (org.Configu
 // SavePolicy creates or updates an organization policy
 func (s *Store) SavePolicy(ctx context.Context, p org.Policy) error {
 	query := `
-		INSERT INTO policies (id, organization_id, name, rules, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO policies (id, organization_id, name, status, version, rules, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
+			status = EXCLUDED.status,
+			version = policies.version + 1,
 			rules = EXCLUDED.rules,
 			updated_at = EXCLUDED.updated_at
 	`
-	_, err := s.db.ExecContext(ctx, query, p.ID, p.OrganizationID, p.Name, p.Rules, p.CreatedAt, p.UpdatedAt)
+	if p.Status == "" {
+		p.Status = "active"
+	}
+	if p.Version <= 0 {
+		p.Version = 1
+	}
+	_, err := s.db.ExecContext(ctx, query, p.ID, p.OrganizationID, p.Name, p.Status, p.Version, p.Rules, p.CreatedAt, p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("postgres: save policy: %w", err)
 	}
@@ -220,13 +228,13 @@ func (s *Store) SavePolicy(ctx context.Context, p org.Policy) error {
 // GetPolicy returns a policy by ID
 func (s *Store) GetPolicy(ctx context.Context, id string) (org.Policy, error) {
 	query := `
-		SELECT id, organization_id, name, rules, created_at, updated_at
+		SELECT id, organization_id, name, status, version, rules, created_at, updated_at
 		FROM policies
 		WHERE id = $1
 	`
 	var p org.Policy
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
-		&p.ID, &p.OrganizationID, &p.Name, &p.Rules, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.OrganizationID, &p.Name, &p.Status, &p.Version, &p.Rules, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return org.Policy{}, fmt.Errorf("postgres: policy not found: %s", id)
@@ -240,10 +248,10 @@ func (s *Store) GetPolicy(ctx context.Context, id string) (org.Policy, error) {
 // ListPoliciesByOrg returns all policies for a given organization
 func (s *Store) ListPoliciesByOrg(ctx context.Context, orgID string) ([]org.Policy, error) {
 	query := `
-		SELECT id, organization_id, name, rules, created_at, updated_at
+		SELECT id, organization_id, name, status, version, rules, created_at, updated_at
 		FROM policies
 		WHERE organization_id = $1
-		ORDER BY name ASC
+		ORDER BY name ASC, version DESC
 	`
 	rows, err := s.db.QueryContext(ctx, query, orgID)
 	if err != nil {
@@ -254,7 +262,7 @@ func (s *Store) ListPoliciesByOrg(ctx context.Context, orgID string) ([]org.Poli
 	var policies []org.Policy
 	for rows.Next() {
 		var p org.Policy
-		if err := rows.Scan(&p.ID, &p.OrganizationID, &p.Name, &p.Rules, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.OrganizationID, &p.Name, &p.Status, &p.Version, &p.Rules, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("postgres: scan policy: %w", err)
 		}
 		policies = append(policies, p)

@@ -853,8 +853,8 @@ func (s *Store) GetActiveAssessmentPolicy(ctx context.Context, orgID string) (as
 	// If not found, return empty policy.
 	query := `
 		SELECT rules FROM policies
-		WHERE organization_id = $1 AND name = 'assessment_policy'
-		ORDER BY updated_at DESC LIMIT 1
+		WHERE organization_id = $1 AND name = 'assessment_policy' AND status = 'active'
+		ORDER BY version DESC, updated_at DESC LIMIT 1
 	`
 	var rulesData []byte
 	err := s.db.QueryRowContext(ctx, query, orgID).Scan(&rulesData)

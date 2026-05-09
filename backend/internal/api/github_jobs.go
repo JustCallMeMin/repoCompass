@@ -17,6 +17,28 @@ type RepositoryWriter interface {
 	SaveRepository(ctx context.Context, repo repository.Repository) error
 }
 
+// acceptGitHubNonPush persists a valid GitHub delivery that does not enqueue a scan.
+func (s *Server) acceptGitHubNonPush(ctx context.Context, value ghintegration.WebhookRequest, status string) (string, error) {
+	if s.integrations == nil {
+		return "", fmt.Errorf("github integration store is not configured")
+	}
+	now := time.Now().UTC()
+	event := ghintegration.WebhookEvent{
+		ID:                 "ghevt_" + stableHash(value.DeliveryID),
+		DeliveryID:         value.DeliveryID,
+		EventType:          value.Event,
+		RepositoryFullName: strings.TrimSpace(value.Payload.Repository.FullName),
+		RepositoryCloneURL: strings.TrimSpace(value.Payload.Repository.CloneURL),
+		Payload:            value.Body,
+		Status:             status,
+		CreatedAt:          now,
+	}
+	if err := s.integrations.SaveWebhookEvent(ctx, event); err != nil {
+		return "", err
+	}
+	return event.ID, nil
+}
+
 // acceptGitHubPush persists a push event and queues a scan job.
 func (s *Server) acceptGitHubPush(ctx context.Context, value ghintegration.WebhookRequest) (map[string]string, error) {
 	if s.integrations == nil {

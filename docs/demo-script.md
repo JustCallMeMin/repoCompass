@@ -10,18 +10,24 @@ For a realistic demo, we use the following public repositories as candidates:
 4. **JustCallMeMin/repoCompass** (Self-scan to show "eating our own dog food")
 
 ## Demo Fixture Set (T7-034)
-Instead of relying on live network clones which can be slow during a live demo, we provide a script to pre-fetch demo repositories:
+The default demo is offline-safe and uses the bundled fixture:
 
 ```bash
-#!/usr/bin/env bash
-# backend/scripts/dev/prepare-demo.sh
-mkdir -p /tmp/repocompass-demo
-git clone --depth 1 https://github.com/kubernetes/kubernetes /tmp/repocompass-demo/kubernetes
-git clone --depth 1 https://github.com/expressjs/express /tmp/repocompass-demo/express
-git clone --depth 1 https://github.com/pallets/flask /tmp/repocompass-demo/flask
-echo "Demo fixtures prepared at /tmp/repocompass-demo"
+make demo
 ```
-*(You can create this script in `backend/scripts/dev/prepare-demo.sh` to quickly set up the demo environment).*
+
+This scans `./backend/testdata/fixtures/local-repositories/good-onboarding-repo`
+and does not require network access.
+
+For public-repository demos, pre-fetch repositories before the presentation:
+
+```bash
+make demo-prepare
+```
+
+The helper script is `backend/scripts/dev/prepare-demo.sh`. It checks for `git`,
+skips repositories that already exist, applies a clone timeout when the host has
+`timeout`, and reports clear failures.
 
 ### Offline Fallback Fixture
 If you are doing a live demo without internet access, or if the GitHub clone fails, use the built-in, offline-ready deterministic fixture:
@@ -35,15 +41,15 @@ If you are doing a live demo without internet access, or if the GitHub clone fai
 - Explain the problem: Joining a new team or maintaining hundreds of repos is hard. You need a fast way to check if a repo follows best practices.
 
 **1:00 - 3:00: The CLI Experience**
-- "Let's start with the developer experience. I've already cloned a few popular repositories."
-- Run `repocompass scan /tmp/repocompass-demo/express`
-- Show the Markdown output in the terminal. Point out the score, the findings, and the recommendations (e.g., missing CONTRIBUTING.md).
-- Run `repocompass scan /tmp/repocompass-demo/flask` to show Python support.
+- "Let's start with the developer experience. This first run is offline-safe."
+- Run `make demo`.
+- Show the Markdown output in the terminal. Point out the score, findings, and recommendations.
+- If public repositories were prepared with `make demo-prepare`, run `./backend/bin/repocompass scan /tmp/repocompass-demo/express`.
 
 **3:00 - 5:00: The Self-Scan (Dogfooding)**
 - "RepoCompass can scan itself."
-- Run `make demo`.
-- Show that RepoCompass scores highly, but maybe point out a simulated warning if we removed a file temporarily.
+- Run `./backend/bin/repocompass scan .` after `make build`.
+- Compare self-scan output with the offline fixture output.
 
 **5:00 - 7:00: The Web Dashboard**
 - "CLI is great for CI, but managers and platform teams want a bird's eye view."
@@ -54,7 +60,7 @@ If you are doing a live demo without internet access, or if the GitHub clone fai
 **7:00 - 9:00: Extensibility**
 - "What if your company has custom rules?"
 - Open `backend/internal/analyzers/example/analyzer.go`.
-- Show how simple the `Analyzer` interface is. Explain that anyone can write a custom analyzer in 50 lines of Go.
+- Show the `Analyzer` interface in `backend/internal/analyzer/analyzer.go` and the runnable example analyzer.
 
 **9:00 - 10:00: Conclusion**
 - "RepoCompass is completely open source. Check out our GitHub, read the Start Here guide, and try it on your own repositories today."

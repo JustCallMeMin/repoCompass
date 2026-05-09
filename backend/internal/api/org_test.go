@@ -4,14 +4,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/JustCallMeMin/repoCompass/backend/internal/auth"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/insights"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/org"
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
+	"github.com/JustCallMeMin/repoCompass/backend/internal/scan"
 )
 
 // fakeOrgStore is an in-memory implementation of OrgStore for unit tests.
@@ -20,12 +25,78 @@ type fakeOrgStore struct {
 	memberships []org.Membership
 	policies    []org.Policy
 	repos       []repository.Repository
+	users       map[string]auth.User
+	sessions    map[string]auth.Session
+	oauthStates map[string]auth.OAuthState
+}
+
+func newDevHeaderTestServer(runner scan.ScanRunner, history HistoryReader, github GitHubCloner, orgs OrgStore) *Server {
+	_ = os.Setenv("REPOCOMPASS_ALLOW_MOCK_USER", "true")
+	server := NewServer(runner, history, github, orgs, nil)
+	server.SetDevHeaderAuth(true)
+	return server
 }
 
 func newFakeOrgStore() *fakeOrgStore {
 	return &fakeOrgStore{
-		orgs: make(map[string]org.Organization),
+		orgs:        make(map[string]org.Organization),
+		users:       make(map[string]auth.User),
+		sessions:    make(map[string]auth.Session),
+		oauthStates: make(map[string]auth.OAuthState),
 	}
+}
+
+func (f *fakeOrgStore) SaveUser(_ context.Context, user auth.User) error {
+	f.users[user.ID] = user
+	return nil
+}
+
+func (f *fakeOrgStore) GetUser(_ context.Context, id string) (auth.User, error) {
+	user, ok := f.users[id]
+	if !ok {
+		return auth.User{}, errNotFound("user", id)
+	}
+	return user, nil
+}
+
+func (f *fakeOrgStore) SaveSession(_ context.Context, session auth.Session) error {
+	f.sessions[session.TokenHash] = session
+	return nil
+}
+
+func (f *fakeOrgStore) GetSessionByTokenHash(_ context.Context, tokenHash string) (auth.Session, error) {
+	session, ok := f.sessions[tokenHash]
+	if !ok || session.RevokedAt != nil || time.Now().After(session.ExpiresAt) {
+		return auth.Session{}, errNotFound("session", tokenHash)
+	}
+	return session, nil
+}
+
+func (f *fakeOrgStore) RevokeSession(_ context.Context, id string) error {
+	for key, session := range f.sessions {
+		if session.ID == id {
+			now := time.Now()
+			session.RevokedAt = &now
+			f.sessions[key] = session
+			return nil
+		}
+	}
+	return errNotFound("session", id)
+}
+
+func (f *fakeOrgStore) SaveOAuthState(_ context.Context, state auth.OAuthState) error {
+	f.oauthStates[state.State] = state
+	return nil
+}
+
+func (f *fakeOrgStore) ConsumeOAuthState(_ context.Context, provider, state string, now time.Time) (auth.OAuthState, error) {
+	value, ok := f.oauthStates[state]
+	if !ok || value.Provider != provider || value.ConsumedAt != nil || !value.ExpiresAt.After(now) {
+		return auth.OAuthState{}, errors.New("oauth state not found or expired")
+	}
+	value.ConsumedAt = &now
+	f.oauthStates[state] = value
+	return value, nil
 }
 
 func (f *fakeOrgStore) GetOrganization(_ context.Context, id string) (org.Organization, error) {
@@ -34,6 +105,11 @@ func (f *fakeOrgStore) GetOrganization(_ context.Context, id string) (org.Organi
 		return org.Organization{}, errNotFound("organization", id)
 	}
 	return o, nil
+}
+
+func (f *fakeOrgStore) SaveOrganization(_ context.Context, o org.Organization) error {
+	f.orgs[o.ID] = o
+	return nil
 }
 
 func (f *fakeOrgStore) ListOrganizations(_ context.Context) ([]org.Organization, error) {
@@ -167,7 +243,7 @@ func TestListOrganizationsReturnsOrgForMockUser(t *testing.T) {
 	store.orgs["org_1"] = o
 	store.memberships = []org.Membership{{OrganizationID: "org_1", UserID: "mock_user", Role: org.RoleOwner}}
 
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations", nil)
 	rw := httptest.NewRecorder()
 	handler.ServeHTTP(rw, req)
@@ -182,7 +258,7 @@ func TestListOrganizationsReturnsOrgForMockUser(t *testing.T) {
 
 func TestGetOrganizationNotFound(t *testing.T) {
 	store := newFakeOrgStore()
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/nonexistent", nil)
 	rw := httptest.NewRecorder()
@@ -197,7 +273,7 @@ func TestAddMemberAndListMembers(t *testing.T) {
 	store := newFakeOrgStore()
 	store.orgs["org_1"] = org.Organization{ID: "org_1", Name: "Org"}
 	store.memberships = []org.Membership{{OrganizationID: "org_1", UserID: "mock_user", Role: org.RoleOwner}}
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 
 	body := bytes.NewBufferString(`{"user_id":"user_42","role":"member"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/organizations/org_1/members", body)
@@ -232,7 +308,7 @@ func TestListPoliciesByOrg(t *testing.T) {
 		{OrganizationID: "org_1", UserID: "mock_user", Role: org.RoleAdmin},
 	}
 
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org_1/policies", nil)
 	rw := httptest.NewRecorder()
 	handler.ServeHTTP(rw, req)
@@ -303,7 +379,7 @@ func TestRemoveMemberRequiresAdminRole(t *testing.T) {
 		{OrganizationID: "org_1", UserID: "mock_user", Role: org.RoleAdmin},
 		{OrganizationID: "org_1", UserID: "user_42", Role: org.RoleMember},
 	}
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/organizations/org_1/members/user_42", nil)
 	rw := httptest.NewRecorder()
@@ -328,7 +404,7 @@ func TestRemoveMemberForbiddenForNonMember(t *testing.T) {
 		{OrganizationID: "org_1", UserID: "mock_user", Role: org.RoleMember},
 		{OrganizationID: "org_1", UserID: "user_42", Role: org.RoleMember},
 	}
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/organizations/org_1/members/user_42", nil)
 	rw := httptest.NewRecorder()
@@ -350,7 +426,7 @@ func TestOrgRepositoriesListEndpoint(t *testing.T) {
 		{ID: "repo_2", Name: "beta", OrganizationID: "org_2"},
 	}
 
-	handler := NewServer(nil, nil, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(nil, nil, nil, store).Handler()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/org_1/repositories", nil)
 	rw := httptest.NewRecorder()
 	handler.ServeHTTP(rw, req)

@@ -11,8 +11,11 @@ RepoCompass has a working backend, CLI, Dockerized PostgreSQL workflow, API surf
 Before making changes, review these documents:
 
 - [README.md](../README.md): Project overview and basic local setup
+- [CONTRIBUTING.md](../CONTRIBUTING.md): Root workflow for setup, checks, issues, and pull requests
 - [docs/structure.md](./structure.md): Repository and backend structure reference
 - [docs/analyzer-contract.md](./analyzer-contract.md): Contributor-facing analyzer contract
+- [docs/provider-contract.md](./provider-contract.md): Provider extension contract
+- [docs/renderer-contract.md](./renderer-contract.md): Renderer extension contract
 - [docs/finding-taxonomy.md](./finding-taxonomy.md): Finding, evidence, and recommendation taxonomy
 - [docs/report-format.md](./report-format.md): Planned Markdown and JSON report formats
 - [docs/persistence-history.md](./persistence-history.md): PostgreSQL persistence and history workflow
@@ -38,9 +41,15 @@ Current subdirectories under `backend/` include:
 
 - `backend/cmd/server`
 - `backend/internal/app`
+- `backend/internal/api`
+- `backend/internal/analyzer`
+- `backend/internal/analyzers`
 - `backend/internal/config`
+- `backend/internal/integration`
+- `backend/internal/report`
 - `backend/internal/repository`
-- `backend/internal/service`
+- `backend/internal/scan`
+- `backend/internal/storage`
 - `backend/db/migrations`
 - `backend/db/seeds`
 - `backend/scripts/dev`
@@ -61,6 +70,7 @@ The repository provides local workflow commands and GitHub Actions CI checks.
 - Formatting: `make fmt`
 - Linting/static checks: `make vet`
 - Testing: `make test`
+- Backend coverage gate: `make test-coverage`
 - Frontend build: `make frontend-build`
 - Docker runtime build: `make docker-build`
 
@@ -69,7 +79,12 @@ At the current stage:
 - the backend Go module is already in place
 - the frontend dashboard package is already in place
 - CI runs backend tests, backend vet, PostgreSQL integration tests, frontend lint/audit/build, and Docker runtime smoke checks
-- the repository provides Make targets such as `make fmt`, `make vet`, `make test`, `make frontend-build`, and `make docker-build`
+- CI enforces a backend coverage floor. The current floor is 45% and should be raised toward 85% as coverage grows.
+- the repository provides Make targets such as `make fmt`, `make vet`, `make test`, `make test-coverage`, `make frontend-build`, and `make docker-build`
+
+On Windows, run Make targets from Git Bash or WSL because several targets call
+POSIX shell scripts. Docker Compose commands can be used directly when those
+shell tools are unavailable.
 
 For local database workflow, copy `backend/.env.example` to `backend/.env` and use:
 

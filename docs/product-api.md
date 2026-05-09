@@ -23,7 +23,7 @@ Configuration:
 - `DEV_HEADER_AUTH`: set to `true` to allow local `X-User-Id` and
   `X-Organization-Id` headers.
 - `GITHUB_WEBHOOK_SECRET`: required outside dev mode for GitHub webhook HMAC
-  validation.
+  validation. The API rejects GitHub webhook requests when this value is missing.
 - `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`,
   `GITHUB_OAUTH_REDIRECT_URL`: GitHub OAuth session configuration.
 
@@ -55,7 +55,8 @@ Errors set `data` to `null` and use stable `error.code` values.
 - `GET /api/v1/repositories/{repository_id}/metrics`: lists metric trend data.
 - `POST /api/v1/integrations/github/webhook`: validates GitHub webhook payloads,
   persists the event, and queues a scan job.
-- `GET /api/v1/auth/github/login`: returns a GitHub OAuth authorization URL.
+- `GET /api/v1/auth/github/login`: persists one-time OAuth state and redirects
+  to GitHub OAuth; `?format=json` returns the authorization URL.
 - `GET /api/v1/auth/github/callback`: creates a RepoCompass session.
 - `GET /api/v1/auth/session`: returns the current actor and organization.
 - `POST /api/v1/auth/logout`: revokes the current session.

@@ -1,10 +1,11 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build docker-build docker-up docker-down docker-logs docker-ps build demo
+.PHONY: help fmt vet test test-coverage test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build dashboard-dev dashboard-smoke docker-build docker-up docker-down docker-logs docker-ps build demo demo-prepare
 
 help:
 	@printf "Available targets:\n"
 	@printf "  make fmt\n"
 	@printf "  make vet\n"
 	@printf "  make test\n"
+	@printf "  make test-coverage\n"
 	@printf "  make test-postgres\n"
 	@printf "  make server\n"
 	@printf "  make migrate-up\n"
@@ -18,6 +19,8 @@ help:
 	@printf "  make frontend-install\n"
 	@printf "  make frontend-dev\n"
 	@printf "  make frontend-build\n"
+	@printf "  make dashboard-dev\n"
+	@printf "  make dashboard-smoke\n"
 	@printf "  make docker-build\n"
 	@printf "  make docker-up\n"
 	@printf "  make docker-down\n"
@@ -25,6 +28,7 @@ help:
 	@printf "  make docker-ps\n"
 	@printf "  make build\n"
 	@printf "  make demo\n"
+	@printf "  make demo-prepare\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -34,6 +38,9 @@ vet:
 
 test:
 	./backend/scripts/dev/test.sh
+
+test-coverage:
+	sh ./backend/scripts/dev/coverage.sh
 
 test-postgres:
 	sh ./backend/scripts/dev/test-postgres.sh
@@ -74,6 +81,12 @@ frontend-dev:
 frontend-build:
 	cd frontend && npm run build
 
+dashboard-dev:
+	sh ./scripts/dev-dashboard.sh
+
+dashboard-smoke:
+	sh ./scripts/m5-dashboard-smoke.sh
+
 docker-build:
 	docker compose build
 
@@ -92,6 +105,9 @@ docker-ps:
 build:
 	cd backend && go build -o bin/repocompass ./cmd/repocompass
 
+demo-prepare:
+	./backend/scripts/dev/prepare-demo.sh
+
 demo: build
-	@echo "Running demo scan on RepoCompass itself..."
-	./backend/bin/repocompass scan .
+	@echo "Running offline demo scan on the bundled onboarding fixture..."
+	./backend/bin/repocompass scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo

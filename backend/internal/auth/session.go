@@ -30,3 +30,13 @@ type GitHubOAuthConfig struct {
 	ClientSecret string
 	RedirectURL  string
 }
+
+// OAuthState is a short-lived CSRF token for an OAuth login attempt.
+type OAuthState struct {
+	State      string     `json:"state"`
+	Provider   string     `json:"provider"`
+	RedirectTo string     `json:"redirect_to"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	ConsumedAt *time.Time `json:"consumed_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+}

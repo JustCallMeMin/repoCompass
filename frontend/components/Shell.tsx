@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AuthGate } from "./AuthGate";
 import { OrgSwitcher } from "./OrgSwitcher";
 
-export function Shell({ children }: { children: ReactNode }) {
+export function Shell({ children, protectedRoute = true }: { children: ReactNode; protectedRoute?: boolean }) {
   return (
     <main className="grain min-h-screen px-5 py-5 text-ink md:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -29,7 +30,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </p>
           </div>
         </header>
-        {children}
+        {protectedRoute ? <AuthGate>{children}</AuthGate> : children}
       </div>
     </main>
   );

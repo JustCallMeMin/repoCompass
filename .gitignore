@@ -6,4 +6,8 @@ reports/
 frontend/.next/
 frontend/node_modules/
 frontend/.env*.local
+frontend/tsconfig.tsbuildinfo
 backend/bin/
+backend/coverage
+backend/coverage.out
+coverage.out

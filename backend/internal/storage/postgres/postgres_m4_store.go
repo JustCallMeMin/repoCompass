@@ -102,6 +102,39 @@ func (s *Store) RevokeSession(ctx context.Context, id string) error {
 	return nil
 }
 
+// SaveOAuthState stores a short-lived OAuth state token.
+func (s *Store) SaveOAuthState(ctx context.Context, state auth.OAuthState) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO oauth_states (state, provider, redirect_to, expires_at, consumed_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()))
+	`, state.State, state.Provider, state.RedirectTo, state.ExpiresAt, state.ConsumedAt, nullableTime(state.CreatedAt))
+	if err != nil {
+		return fmt.Errorf("postgres: save oauth state: %w", err)
+	}
+	return nil
+}
+
+// ConsumeOAuthState marks a valid OAuth state as consumed and returns it.
+func (s *Store) ConsumeOAuthState(ctx context.Context, provider, state string, now time.Time) (auth.OAuthState, error) {
+	var value auth.OAuthState
+	err := s.db.QueryRowContext(ctx, `
+		UPDATE oauth_states
+		SET consumed_at = $3
+		WHERE provider = $1
+		  AND state = $2
+		  AND consumed_at IS NULL
+		  AND expires_at > $3
+		RETURNING state, provider, redirect_to, expires_at, consumed_at, created_at
+	`, provider, state, now).Scan(&value.State, &value.Provider, &value.RedirectTo, &value.ExpiresAt, &value.ConsumedAt, &value.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return auth.OAuthState{}, fmt.Errorf("postgres: oauth state not found or expired")
+	}
+	if err != nil {
+		return auth.OAuthState{}, fmt.Errorf("postgres: consume oauth state: %w", err)
+	}
+	return value, nil
+}
+
 // SaveGitHubIntegration creates or updates a GitHub integration.
 func (s *Store) SaveGitHubIntegration(ctx context.Context, value ghintegration.Integration) error {
 	_, err := s.db.ExecContext(ctx, `
@@ -147,6 +180,7 @@ func (s *Store) SaveWebhookEvent(ctx context.Context, event ghintegration.Webhoo
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO github_webhook_events (id, delivery_id, event_type, repository_full_name, repository_clone_url, payload, status, error_message, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, NOW()))
+		ON CONFLICT (delivery_id) DO NOTHING
 	`, event.ID, event.DeliveryID, event.EventType, event.RepositoryFullName, event.RepositoryCloneURL, event.Payload, event.Status, event.ErrorMessage, nullableTime(event.CreatedAt))
 	if err != nil {
 		return fmt.Errorf("postgres: save webhook event: %w", err)

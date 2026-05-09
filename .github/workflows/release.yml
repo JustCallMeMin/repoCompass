@@ -17,20 +17,38 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
 
-      - name: Build and Validate Artifacts
+      - name: Build and validate artifacts
+        shell: bash
         run: |
-          make build
-          if [ ! -f "backend/bin/repocompass" ]; then
-            echo "Build failed: binary not found"
-            exit 1
-          fi
-          
-          echo "Running smoke tests..."
-          ./backend/bin/repocompass help
-          ./backend/bin/repocompass version
-          ./backend/bin/repocompass scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo
+          set -euo pipefail
+
+          mkdir -p dist
+
+          targets=(
+            "linux amd64 repocompass-linux-amd64"
+            "linux arm64 repocompass-linux-arm64"
+            "darwin amd64 repocompass-darwin-amd64"
+            "darwin arm64 repocompass-darwin-arm64"
+            "windows amd64 repocompass-windows-amd64.exe"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r goos goarch output <<<"$target"
+            echo "Building $output"
+            GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+              go build -C backend -trimpath -ldflags="-s -w" -o "../dist/$output" ./cmd/repocompass
+          done
+
+          echo "Running smoke tests against linux artifact..."
+          ./dist/repocompass-linux-amd64 help
+          ./dist/repocompass-linux-amd64 version
+          ./dist/repocompass-linux-amd64 scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo
+
+          (cd dist && sha256sum * > SHA256SUMS)
+          cat dist/SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -40,4 +58,4 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            backend/bin/repocompass
+            dist/*

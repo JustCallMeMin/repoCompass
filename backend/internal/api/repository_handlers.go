@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -148,6 +150,10 @@ func (s *Server) handleListReports(w http.ResponseWriter, r *http.Request) {
 
 // handleGitHubLogin starts a GitHub OAuth browser flow.
 func (s *Server) handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
+	if s.sessions == nil {
+		writeRequestError(w, r, http.StatusInternalServerError, "session_store_unavailable", "session store is not configured")
+		return
+	}
 	clientID := os.Getenv("GITHUB_OAUTH_CLIENT_ID")
 	redirectURL := os.Getenv("GITHUB_OAUTH_REDIRECT_URL")
 	if clientID == "" || redirectURL == "" {
@@ -155,10 +161,24 @@ func (s *Server) handleGitHubLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state := newOpaqueToken()
+	now := time.Now().UTC()
+	if err := s.sessions.SaveOAuthState(r.Context(), auth.OAuthState{
+		State:     state,
+		Provider:  "github",
+		ExpiresAt: now.Add(10 * time.Minute),
+		CreatedAt: now,
+	}); err != nil {
+		writeRequestError(w, r, http.StatusInternalServerError, "oauth_state_write_failed", "failed to start GitHub OAuth")
+		return
+	}
 	target := "https://github.com/login/oauth/authorize?client_id=" + url.QueryEscape(clientID) +
 		"&redirect_uri=" + url.QueryEscape(redirectURL) +
 		"&scope=read:user%20user:email" +
 		"&state=" + url.QueryEscape(state)
+	if r.URL.Query().Get("format") != "json" {
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
 	writeData(w, r, http.StatusOK, map[string]string{"authorization_url": target, "state": state})
 }
 
@@ -168,26 +188,55 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		writeRequestError(w, r, http.StatusInternalServerError, "session_store_unavailable", "session store is not configured")
 		return
 	}
+	clientID := os.Getenv("GITHUB_OAUTH_CLIENT_ID")
+	clientSecret := os.Getenv("GITHUB_OAUTH_CLIENT_SECRET")
+	redirectURL := os.Getenv("GITHUB_OAUTH_REDIRECT_URL")
+	if clientID == "" || clientSecret == "" || redirectURL == "" {
+		writeRequestError(w, r, http.StatusServiceUnavailable, "oauth_unconfigured", "GitHub OAuth is not configured")
+		return
+	}
 	code := strings.TrimSpace(r.URL.Query().Get("code"))
 	if code == "" {
 		writeRequestError(w, r, http.StatusBadRequest, "invalid_request", "code query parameter is required")
 		return
 	}
-	login := strings.TrimSpace(r.URL.Query().Get("login"))
-	if login == "" {
-		login = "github_user"
+	state := strings.TrimSpace(r.URL.Query().Get("state"))
+	if state == "" {
+		writeRequestError(w, r, http.StatusBadRequest, "invalid_request", "state query parameter is required")
+		return
+	}
+	if _, err := s.sessions.ConsumeOAuthState(r.Context(), "github", state, time.Now().UTC()); err != nil {
+		writeRequestError(w, r, http.StatusUnauthorized, "oauth_state_invalid", "OAuth state is invalid or expired")
+		return
+	}
+	githubUser, err := fetchGitHubOAuthUser(r.Context(), clientID, clientSecret, redirectURL, code)
+	if err != nil {
+		writeRequestError(w, r, http.StatusBadGateway, "oauth_exchange_failed", "failed to authenticate with GitHub")
+		return
 	}
 	now := time.Now().UTC()
 	user := auth.User{
-		ID:        "usr_" + stableHash(login),
-		GitHubID:  stableHash(code),
-		Login:     login,
+		ID:        "usr_github_" + githubUser.ID,
+		GitHubID:  githubUser.ID,
+		Login:     githubUser.Login,
+		Name:      githubUser.Name,
+		AvatarURL: githubUser.AvatarURL,
+		Email:     githubUser.Email,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 	if err := s.sessions.SaveUser(r.Context(), user); err != nil {
 		writeRequestError(w, r, http.StatusInternalServerError, "session_write_failed", "failed to save user")
 		return
+	}
+	if s.orgs != nil {
+		_ = s.orgs.SaveMembership(r.Context(), org.Membership{
+			OrganizationID: org.DefaultPersonalOrgID,
+			UserID:         user.ID,
+			Role:           org.RoleOwner,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		})
 	}
 	token := newOpaqueToken()
 	session := auth.Session{
@@ -201,8 +250,103 @@ func (s *Server) handleGitHubCallback(w http.ResponseWriter, r *http.Request) {
 		writeRequestError(w, r, http.StatusInternalServerError, "session_write_failed", "failed to save session")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: "repocompass_session", Value: token, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Expires: session.ExpiresAt})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "repocompass_session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   os.Getenv("APP_ENV") == "production",
+		Expires:  session.ExpiresAt,
+	})
 	writeData(w, r, http.StatusOK, map[string]any{"user": user, "session": session, "token": token})
+}
+
+type githubOAuthUser struct {
+	ID        string
+	Login     string
+	Name      string
+	AvatarURL string
+	Email     string
+}
+
+// fetchGitHubOAuthUser exchanges an OAuth code and fetches the real GitHub user.
+func fetchGitHubOAuthUser(ctx context.Context, clientID, clientSecret, redirectURL, code string) (githubOAuthUser, error) {
+	form := url.Values{}
+	form.Set("client_id", clientID)
+	form.Set("client_secret", clientSecret)
+	form.Set("redirect_uri", redirectURL)
+	form.Set("code", code)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://github.com/login/oauth/access_token", strings.NewReader(form.Encode()))
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return githubOAuthUser{}, fmt.Errorf("github token exchange failed: %s", resp.Status)
+	}
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return githubOAuthUser{}, err
+	}
+	if tokenResp.AccessToken == "" {
+		if tokenResp.Error != "" {
+			return githubOAuthUser{}, fmt.Errorf("github oauth error: %s", tokenResp.Error)
+		}
+		return githubOAuthUser{}, fmt.Errorf("github oauth response missing access_token")
+	}
+	userReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	userReq.Header.Set("Accept", "application/vnd.github+json")
+	userReq.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
+	userResp, err := http.DefaultClient.Do(userReq)
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	defer userResp.Body.Close()
+	userBody, err := io.ReadAll(io.LimitReader(userResp.Body, 1<<20))
+	if err != nil {
+		return githubOAuthUser{}, err
+	}
+	if userResp.StatusCode < 200 || userResp.StatusCode >= 300 {
+		return githubOAuthUser{}, fmt.Errorf("github user fetch failed: %s", userResp.Status)
+	}
+	var raw struct {
+		ID        int64  `json:"id"`
+		Login     string `json:"login"`
+		Name      string `json:"name"`
+		AvatarURL string `json:"avatar_url"`
+		Email     string `json:"email"`
+	}
+	if err := json.Unmarshal(userBody, &raw); err != nil {
+		return githubOAuthUser{}, err
+	}
+	if raw.ID == 0 || raw.Login == "" {
+		return githubOAuthUser{}, fmt.Errorf("github user response missing id/login")
+	}
+	return githubOAuthUser{
+		ID:        fmt.Sprintf("%d", raw.ID),
+		Login:     raw.Login,
+		Name:      raw.Name,
+		AvatarURL: raw.AvatarURL,
+		Email:     raw.Email,
+	}, nil
 }
 
 // handleCurrentSession returns the authenticated session actor.
@@ -269,7 +413,9 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request, orgID, action
 		return false
 	}
 	var err error
-	if action == "write" {
+	if action == "manage" {
+		err = s.authSvc.CheckManageOrg(r.Context(), userID, orgID)
+	} else if action == "write" {
 		err = s.authSvc.CheckEditRepo(r.Context(), userID, orgID)
 	} else {
 		err = s.authSvc.CheckAccessRepo(r.Context(), userID, orgID)

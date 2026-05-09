@@ -18,4 +18,10 @@ When adding a new Provider:
 
 ## Minimal Example
 
-Check out the runnable example Provider in `backend/internal/integration/example/provider.go`.
+Check out the runnable example provider in `backend/internal/integration/example/provider.go`.
+Run its tests with:
+
+```bash
+cd backend
+go test ./internal/integration/example
+```

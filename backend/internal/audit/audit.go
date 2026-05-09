@@ -9,8 +9,8 @@ type EventType string
 
 const (
 	// Organization management
-	EventOrgCreated     EventType = "org.created"
-	EventOrgUpdated     EventType = "org.updated"
+	EventOrgCreated EventType = "org.created"
+	EventOrgUpdated EventType = "org.updated"
 
 	// Membership management
 	EventMemberAdded       EventType = "org.member.added"
@@ -41,6 +41,11 @@ type Entry struct {
 // Logger records audit entries.
 type Logger interface {
 	Log(entry Entry) error
+}
+
+// Store persists audit entries for later review.
+type Store interface {
+	SaveAuditEntry(entry Entry) error
 }
 
 // NoopLogger silently discards every audit entry.
