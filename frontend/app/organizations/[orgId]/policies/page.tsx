@@ -19,6 +19,8 @@ export default function OrgPoliciesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftStatus, setDraftStatus] = useState<Policy["status"]>("active");
   const [draftRules, setDraftRules] = useState("");
   const [saving, setSaving] = useState(false);
   const [currentRole, setCurrentRole] = useState<Membership["role"] | undefined>();
@@ -42,7 +44,13 @@ export default function OrgPoliciesPage() {
     setSaving(true);
     try {
       const rules = JSON.parse(draftRules) as Record<string, unknown>;
-      await savePolicy(orgId, { id: policy.id, name: policy.name, rules });
+      await savePolicy(orgId, {
+        id: policy.id,
+        name: draftName.trim() || policy.name,
+        status: draftStatus,
+        version: policy.version || 1,
+        rules,
+      });
       setEditing(null);
       load();
     } catch (err) {
@@ -90,6 +98,8 @@ export default function OrgPoliciesPage() {
                   onClick={() => {
                     if (!canManage) return;
                     setEditing(p.id);
+                    setDraftName(p.name);
+                    setDraftStatus(p.status ?? "active");
                     setDraftRules(JSON.stringify(p.rules, null, 2));
                   }}
                   disabled={!canManage}
@@ -101,6 +111,28 @@ export default function OrgPoliciesPage() {
 
               {editing === p.id ? (
                 <div className="mt-4">
+                  <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+                    <label className="block text-xs font-bold text-ink/60">
+                      Name
+                      <input
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        className="mt-1 w-full border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-rust"
+                      />
+                    </label>
+                    <label className="block text-xs font-bold text-ink/60">
+                      Status
+                      <select
+                        value={draftStatus}
+                        onChange={(e) => setDraftStatus(e.target.value as Policy["status"])}
+                        className="mt-1 w-full border border-ink/20 bg-white px-3 py-2 text-sm outline-none"
+                      >
+                        <option value="active">active</option>
+                        <option value="draft">draft</option>
+                        <option value="disabled">disabled</option>
+                      </select>
+                    </label>
+                  </div>
                   <label className="mb-1 block text-xs font-bold text-ink/60">Rules (JSON)</label>
                   <textarea
                     id={`policy-rules-editor-${p.id}`}
@@ -128,9 +160,14 @@ export default function OrgPoliciesPage() {
                   </div>
                 </div>
               ) : (
-                <pre className="mt-3 overflow-auto rounded-sm border border-ink/10 bg-field px-3 py-2 text-xs text-ink/70">
-                  {JSON.stringify(p.rules, null, 2)}
-                </pre>
+                <div className="mt-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink/40">
+                    {p.status ?? "active"} · v{p.version ?? 1}
+                  </p>
+                  <pre className="mt-2 overflow-auto rounded-sm border border-ink/10 bg-field px-3 py-2 text-xs text-ink/70">
+                    {JSON.stringify(p.rules, null, 2)}
+                  </pre>
+                </div>
               )}
             </div>
           ))}

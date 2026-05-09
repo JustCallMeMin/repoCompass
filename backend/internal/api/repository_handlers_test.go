@@ -15,12 +15,65 @@ import (
 	"github.com/JustCallMeMin/repoCompass/backend/internal/repository"
 )
 
+func TestGitHubOAuthLoginPersistsState(t *testing.T) {
+	t.Setenv("GITHUB_OAUTH_CLIENT_ID", "client-id")
+	t.Setenv("GITHUB_OAUTH_REDIRECT_URL", "http://localhost:8080/api/v1/auth/github/callback")
+	store := newFakeOrgStore()
+	handler := NewServer(nil, nil, nil, store, nil).Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/github/login?format=json", nil)
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, req)
+
+	if rw.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rw.Code, rw.Body.String())
+	}
+	if len(store.oauthStates) != 1 {
+		t.Fatalf("expected one oauth state, got %d", len(store.oauthStates))
+	}
+	if !bytes.Contains(rw.Body.Bytes(), []byte("https://github.com/login/oauth/authorize")) {
+		t.Fatalf("expected authorization url: %s", rw.Body.String())
+	}
+}
+
+func TestGitHubWebhookRejectsMissingSecret(t *testing.T) {
+	server := NewServer(nil, nil, nil, newFakeOrgStore(), nil)
+	handler := server.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/integrations/github/webhook", bytes.NewReader([]byte(`{}`)))
+	req.Header.Set("X-GitHub-Event", "ping")
+	req.Header.Set("X-GitHub-Delivery", "delivery_missing_secret")
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, req)
+
+	if rw.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rw.Code, rw.Body.String())
+	}
+}
+
+func TestGitHubWebhookRejectsInvalidSignature(t *testing.T) {
+	server := NewServer(nil, nil, nil, newFakeOrgStore(), nil)
+	server.SetGitHubWebhookSecret("secret")
+	handler := server.Handler()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/integrations/github/webhook", bytes.NewReader([]byte(`{}`)))
+	req.Header.Set("X-GitHub-Event", "ping")
+	req.Header.Set("X-GitHub-Delivery", "delivery_bad_sig")
+	req.Header.Set("X-Hub-Signature-256", "sha256=bad")
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, req)
+
+	if rw.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", rw.Code, rw.Body.String())
+	}
+}
+
 func TestM4RepositoryAndScanEndpointsUseEnvelope(t *testing.T) {
 	store := newFakeOrgStore()
 	store.repos = []repository.Repository{{ID: "repo_1", Name: "alpha", FullName: "owner/alpha", LocalPath: "./testdata", Provider: repository.ProviderLocal, Status: repository.StatusActive, OrganizationID: org.DefaultPersonalOrgID}}
 	store.memberships = []org.Membership{{OrganizationID: org.DefaultPersonalOrgID, UserID: "mock_user", Role: org.RoleOwner}}
 	runner := fakeRunner{result: testRunResult("scan_1", "repo_1")}
-	handler := NewServer(&runner, &fakeHistoryReader{}, nil, store, nil).Handler()
+	handler := newDevHeaderTestServer(&runner, &fakeHistoryReader{}, nil, store).Handler()
 
 	for _, tc := range []struct {
 		method string
@@ -58,7 +111,7 @@ func TestGitHubWebhookPushPersistsEventAndQueuesJob(t *testing.T) {
 	store := newFakeOrgStore()
 	store.memberships = []org.Membership{{OrganizationID: org.DefaultPersonalOrgID, UserID: "mock_user", Role: org.RoleOwner}}
 	integrations := &fakeGitHubIntegrationStore{}
-	server := NewServer(nil, nil, nil, store, nil)
+	server := newDevHeaderTestServer(nil, nil, nil, store)
 	server.integrations = integrations
 	server.SetGitHubWebhookSecret("secret")
 	handler := server.Handler()
@@ -113,11 +166,22 @@ func (f *fakeGitHubIntegrationStore) FindGitHubIntegration(_ context.Context, or
 }
 
 func (f *fakeGitHubIntegrationStore) SaveWebhookEvent(_ context.Context, event ghintegration.WebhookEvent) error {
+	for _, existing := range f.events {
+		if existing.DeliveryID == event.DeliveryID {
+			return nil
+		}
+	}
 	f.events = append(f.events, event)
 	return nil
 }
 
 func (f *fakeGitHubIntegrationStore) SaveScanJob(_ context.Context, job ghintegration.ScanJob) error {
+	for index, existing := range f.jobs {
+		if existing.ID == job.ID {
+			f.jobs[index] = job
+			return nil
+		}
+	}
 	f.jobs = append(f.jobs, job)
 	return nil
 }

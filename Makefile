@@ -1,10 +1,11 @@
-.PHONY: help fmt vet test test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build dashboard-dev dashboard-smoke docker-build docker-up docker-down docker-logs docker-ps build demo
+.PHONY: help fmt vet test test-coverage test-postgres server migrate-up migrate-down migrate-status db-up db-down db-reset db-seed db-status frontend-install frontend-dev frontend-build dashboard-dev dashboard-smoke docker-build docker-up docker-down docker-logs docker-ps build demo demo-prepare
 
 help:
 	@printf "Available targets:\n"
 	@printf "  make fmt\n"
 	@printf "  make vet\n"
 	@printf "  make test\n"
+	@printf "  make test-coverage\n"
 	@printf "  make test-postgres\n"
 	@printf "  make server\n"
 	@printf "  make migrate-up\n"
@@ -27,6 +28,7 @@ help:
 	@printf "  make docker-ps\n"
 	@printf "  make build\n"
 	@printf "  make demo\n"
+	@printf "  make demo-prepare\n"
 
 fmt:
 	./backend/scripts/dev/fmt.sh
@@ -36,6 +38,9 @@ vet:
 
 test:
 	./backend/scripts/dev/test.sh
+
+test-coverage:
+	sh ./backend/scripts/dev/coverage.sh
 
 test-postgres:
 	sh ./backend/scripts/dev/test-postgres.sh
@@ -100,6 +105,9 @@ docker-ps:
 build:
 	cd backend && go build -o bin/repocompass ./cmd/repocompass
 
+demo-prepare:
+	./backend/scripts/dev/prepare-demo.sh
+
 demo: build
-	@echo "Running demo scan on RepoCompass itself..."
-	./backend/bin/repocompass scan .
+	@echo "Running offline demo scan on the bundled onboarding fixture..."
+	./backend/bin/repocompass scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo

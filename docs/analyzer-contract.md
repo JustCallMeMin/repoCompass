@@ -1,8 +1,7 @@
 # Analyzer Contract
 
 This document defines the contributor-facing contract for RepoCompass analyzers.
-It is a design contract for Milestone 2. The concrete Go interface will be
-added in a later backend task.
+The concrete Go interface is implemented in `backend/internal/analyzer/analyzer.go`.
 
 ## Purpose
 
@@ -40,12 +39,12 @@ Each analyzer should:
 5. Return stable metadata, even when no finding is produced.
 
 Analyzer execution must be deterministic. For the same input repository state
-and configuration, the analyzer must return the same result. Milestone 2 does
-not use AI-generated judgment for analyzer decisions.
+and configuration, the analyzer must return the same result. Analyzer decisions
+must come from repository facts, configuration, and rules, not generated guesses.
 
 ## Input
 
-The planned analyzer input is a scan context containing:
+The analyzer input is a scan context containing:
 
 | Field | Purpose |
 | --- | --- |
@@ -58,7 +57,7 @@ The input should be read-only from the analyzer perspective.
 
 ## Output
 
-The planned analyzer output is an analyzer result containing:
+The analyzer output is an analyzer result containing:
 
 | Field | Purpose |
 | --- | --- |
@@ -108,63 +107,16 @@ Expected behavior:
 
 ## Minimal Example
 
-The following pseudo-Go example shows a README existence analyzer. It is not
-intended to compile until the concrete Milestone 2 interfaces exist.
+The project includes a runnable minimal analyzer in
+`backend/internal/analyzers/example/analyzer.go`. Test it with:
 
-```go
-type ReadmeAnalyzer struct{}
-
-func (ReadmeAnalyzer) Metadata() AnalyzerMetadata {
-	return AnalyzerMetadata{
-		ID:      "readme",
-		Name:    "README Analyzer",
-		Version: "0.1.0",
-	}
-}
-
-func (ReadmeAnalyzer) Analyze(ctx context.Context, input AnalyzerInput) (AnalyzerResult, error) {
-	readmePath := filepath.Join(input.Repository.LocalPath, "README.md")
-
-	if fileExists(readmePath) {
-		return AnalyzerResult{
-			AnalyzerID: "readme",
-			Name:       "README Analyzer",
-			Version:    "0.1.0",
-			Status:     AnalyzerStatusSuccess,
-			Findings:   nil,
-		}, nil
-	}
-
-	finding := Finding{
-		RuleID:     "readme.required",
-		AnalyzerID: "readme",
-		Severity:   SeverityHigh,
-		Title:      "README file is missing",
-		Message:    "The repository does not contain a README.md file at its root.",
-		Category:   "documentation",
-		Evidence: []Evidence{
-			{
-				Type:    EvidenceFileMissing,
-				Path:    "README.md",
-				Message: "README.md was not found at the repository root.",
-			},
-		},
-		Recommendation: Recommendation{
-			Title:     "Add a root README",
-			Action:    "Create README.md with project purpose, setup steps, and test commands.",
-			Rationale: "New contributors need a stable entry point before changing code.",
-		},
-	}
-
-	return AnalyzerResult{
-		AnalyzerID: "readme",
-		Name:       "README Analyzer",
-		Version:    "0.1.0",
-		Status:     AnalyzerStatusSuccess,
-		Findings:   []Finding{finding},
-	}, nil
-}
+```bash
+cd backend
+go test ./internal/analyzers/example
 ```
+
+For a production analyzer with findings and evidence, inspect the README,
+CONTRIBUTING, CI, and scripts analyzers under `backend/internal/analyzers/`.
 
 ## Contributor Checklist
 

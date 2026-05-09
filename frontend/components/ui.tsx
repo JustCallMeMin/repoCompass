@@ -59,9 +59,9 @@ export function UnauthorizedState() {
   return (
     <Card className="text-center">
       <p className="font-display text-3xl">Session required.</p>
-      <p className="mt-2 text-sm text-ink/60">Start the API with dev header auth or sign in with GitHub OAuth.</p>
-      <Link href="/dashboard" className="mt-4 inline-block text-sm font-bold uppercase tracking-[0.14em] text-rust">
-        Back to dashboard
+      <p className="mt-2 text-sm text-ink/60">Sign in with GitHub to continue.</p>
+      <Link href="http://localhost:8080/api/v1/auth/github/login" className="mt-4 inline-block text-sm font-bold uppercase tracking-[0.14em] text-rust">
+        Sign in with GitHub
       </Link>
     </Card>
   );

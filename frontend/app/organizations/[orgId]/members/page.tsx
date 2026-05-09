@@ -3,7 +3,15 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Shell } from "../../../../components/Shell";
-import { Membership, addMember, canManageOrganization, currentUserId, listMembers } from "../../../../lib/api";
+import {
+  Membership,
+  addMember,
+  canManageOrganization,
+  currentUserId,
+  listMembers,
+  removeMember,
+  updateMemberRole,
+} from "../../../../lib/api";
 
 export default function OrgMembersPage() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -41,6 +49,26 @@ export default function OrgMembersPage() {
     }
   }
 
+  async function handleRoleChange(userId: string, role: Membership["role"]) {
+    if (!orgId || !canManage) return;
+    try {
+      await updateMemberRole(orgId, userId, role);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update role");
+    }
+  }
+
+  async function handleRemove(userId: string) {
+    if (!orgId || !canManage) return;
+    try {
+      await removeMember(orgId, userId);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove member");
+    }
+  }
+
   return (
     <Shell>
       <section className="grid gap-5">
@@ -66,6 +94,7 @@ export default function OrgMembersPage() {
                   <tr className="border-b border-ink/10 text-left text-xs font-bold uppercase tracking-[0.14em] text-ink/40">
                     <th className="pb-2">User</th>
                     <th className="pb-2">Role</th>
+                    <th className="pb-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink/5">
@@ -73,9 +102,26 @@ export default function OrgMembersPage() {
                     <tr key={m.user_id} id={`member-row-${m.user_id}`}>
                       <td className="py-2 font-mono">{m.user_id}</td>
                       <td className="py-2">
-                        <span className="rounded-sm border border-ink/15 px-2 py-0.5 text-xs font-bold uppercase tracking-[0.12em]">
-                          {m.role}
-                        </span>
+                        <select
+                          value={m.role}
+                          disabled={!canManage}
+                          onChange={(e) => handleRoleChange(m.user_id, e.target.value as Membership["role"])}
+                          className="border border-ink/15 bg-white px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] disabled:bg-field"
+                        >
+                          {(["owner", "admin", "member", "viewer"] as const).map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          type="button"
+                          disabled={!canManage || m.user_id === currentUserId}
+                          onClick={() => handleRemove(m.user_id)}
+                          className="border border-rust/30 px-2 py-1 text-xs font-bold uppercase tracking-[0.12em] text-rust disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Remove
+                        </button>
                       </td>
                     </tr>
                   ))}

@@ -1,8 +1,8 @@
 # Report Format
 
-This document defines the planned RepoCompass report formats for Milestone 2.
-It describes the human-readable Markdown report and the machine-readable JSON
-report. The concrete renderer interfaces will be added in later backend tasks.
+This document defines the RepoCompass report formats for the CLI and API. It
+describes the human-readable Markdown report and the machine-readable JSON
+report. Renderer interfaces live in `backend/internal/report/report.go`.
 
 ## Purpose
 
@@ -11,20 +11,19 @@ RepoCompass reports must make scan results useful to both humans and automation.
 The Markdown format is for maintainers and contributors who want to read the
 result in a terminal, pull request, or GitHub-rendered document.
 
-The JSON format is for automation, API consumers, and future dashboard views.
-Its field names and enum values should remain stable once renderer work begins.
+The JSON format is for automation, API consumers, and dashboard views. Its field
+names and enum values should remain stable once released.
 
 ## Usage
 
-Milestone 2 targets these commands:
+Current CLI commands:
 
 ```bash
 repocompass scan <local-path> --format markdown
 repocompass scan <local-path> --format json
 ```
 
-The `markdown` format should be the default human-readable output unless a
-later CLI task chooses a different default.
+The `markdown` format is the default human-readable output.
 
 ## Markdown Report Structure
 

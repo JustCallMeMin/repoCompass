@@ -44,9 +44,16 @@ type Policy struct {
 	ID             string          `json:"id"`
 	OrganizationID string          `json:"organization_id"`
 	Name           string          `json:"name"`
+	Status         string          `json:"status"`
+	Version        int             `json:"version"`
 	Rules          json.RawMessage `json:"rules"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 const DefaultPersonalOrgID = "00000000-0000-0000-0000-000000000000"
+
+// ValidRole reports whether a role is part of the M6 role model.
+func ValidRole(role Role) bool {
+	return role == RoleOwner || role == RoleAdmin || role == RoleMember || role == RoleViewer
+}

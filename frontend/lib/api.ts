@@ -1,7 +1,7 @@
 export const apiBaseUrl =
   process.env.NEXT_PUBLIC_REPOCOMPASS_API_URL?.replace(/\/$/, "") ?? "http://localhost:8080";
 
-export const currentUserId = process.env.NEXT_PUBLIC_REPOCOMPASS_USER_ID ?? "mock_user";
+export const currentUserId = process.env.NEXT_PUBLIC_REPOCOMPASS_USER_ID ?? "";
 export const currentOrganizationId =
   process.env.NEXT_PUBLIC_REPOCOMPASS_ORG_ID ?? "00000000-0000-0000-0000-000000000000";
 
@@ -139,6 +139,8 @@ export type Policy = {
   id: string;
   organization_id: string;
   name: string;
+  status: "active" | "draft" | "disabled";
+  version: number;
   rules: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -149,6 +151,42 @@ export type OrgInsights = {
   average_score: number;
   total_repositories: number;
   total_scans: number;
+  high_risk_count?: number;
+  stale_scan_count?: number;
+  top_repository_id?: string;
+  lowest_repository_id?: string;
+  insights?: Array<{
+    severity: "info" | "warning" | "critical";
+    title: string;
+    explanation: string;
+    next_action: string;
+    repository_id?: string;
+    policy_id?: string;
+  }>;
+};
+
+export type NotificationItem = {
+  id: string;
+  organization_id: string;
+  user_id?: string;
+  type: string;
+  severity: "info" | "warning" | "critical";
+  title: string;
+  message: string;
+  resource_type?: string;
+  resource_id?: string;
+  read_at?: string;
+  created_at: string;
+};
+
+export type NotificationPreference = {
+  organization_id: string;
+  user_id: string;
+  channels: Array<"in_app" | "webhook" | "email">;
+  event_types: string[];
+  webhook_url?: string;
+  email?: string;
+  updated_at?: string;
 };
 
 export class RepoCompassApiError extends Error {
@@ -162,14 +200,18 @@ export class RepoCompassApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Organization-Id": currentOrganizationId,
+    ...((init?.headers as Record<string, string> | undefined) ?? {}),
+  };
+  if (currentUserId) {
+    headers["X-User-Id"] = currentUserId;
+  }
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-Id": currentUserId,
-      "X-Organization-Id": currentOrganizationId,
-      ...(init?.headers ?? {}),
-    },
+    credentials: "include",
+    headers,
   });
   const body = await response.json().catch(() => null);
   const error = body?.error as ApiError | null | undefined;
@@ -244,15 +286,43 @@ export function getOrganization(orgId: string) {
   return request<Organization>(`/api/v1/organizations/${encodeURIComponent(orgId)}`);
 }
 
+export function createOrganization(id: string, name: string) {
+  return request<Organization>("/api/v1/organizations", {
+    method: "POST",
+    body: JSON.stringify({ id, name }),
+  });
+}
+
+export function updateOrganization(orgId: string, name: string) {
+  return request<Organization>(`/api/v1/organizations/${encodeURIComponent(orgId)}`, {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+}
+
 export function listMembers(orgId: string) {
   return request<Membership[]>(`/api/v1/organizations/${encodeURIComponent(orgId)}/members`);
 }
 
 export function addMember(orgId: string, userId: string, role: Membership["role"]) {
-  return request<{ status: string }>(`/api/v1/organizations/${encodeURIComponent(orgId)}/members`, {
+  return request<Membership>(`/api/v1/organizations/${encodeURIComponent(orgId)}/members`, {
     method: "POST",
     body: JSON.stringify({ user_id: userId, role }),
   });
+}
+
+export function updateMemberRole(orgId: string, userId: string, role: Membership["role"]) {
+  return request<Membership>(
+    `/api/v1/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(userId)}`,
+    { method: "PUT", body: JSON.stringify({ role }) },
+  );
+}
+
+export function removeMember(orgId: string, userId: string) {
+  return request<{ status: string }>(
+    `/api/v1/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
 }
 
 export function listOrgRepositories(orgId: string) {
@@ -264,7 +334,7 @@ export function listPolicies(orgId: string) {
 }
 
 export function savePolicy(orgId: string, policy: Omit<Policy, "created_at" | "updated_at" | "organization_id">) {
-  return request<{ status: string }>(`/api/v1/organizations/${encodeURIComponent(orgId)}/policies`, {
+  return request<Policy>(`/api/v1/organizations/${encodeURIComponent(orgId)}/policies`, {
     method: "POST",
     body: JSON.stringify(policy),
   });
@@ -272,4 +342,28 @@ export function savePolicy(orgId: string, policy: Omit<Policy, "created_at" | "u
 
 export function getOrgInsights(orgId: string) {
   return request<OrgInsights>(`/api/v1/organizations/${encodeURIComponent(orgId)}/insights`);
+}
+
+export function listNotifications(orgId: string) {
+  return request<NotificationItem[]>(`/api/v1/organizations/${encodeURIComponent(orgId)}/notifications`);
+}
+
+export function markNotificationRead(orgId: string, notificationId: string) {
+  return request<{ status: string }>(
+    `/api/v1/organizations/${encodeURIComponent(orgId)}/notifications/${encodeURIComponent(notificationId)}/read`,
+    { method: "POST" },
+  );
+}
+
+export function getNotificationPreference(orgId: string) {
+  return request<NotificationPreference>(
+    `/api/v1/organizations/${encodeURIComponent(orgId)}/notification-preferences`,
+  );
+}
+
+export function saveNotificationPreference(orgId: string, preference: NotificationPreference) {
+  return request<NotificationPreference>(
+    `/api/v1/organizations/${encodeURIComponent(orgId)}/notification-preferences`,
+    { method: "PUT", body: JSON.stringify(preference) },
+  );
 }

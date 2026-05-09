@@ -26,14 +26,16 @@ Organization management pages can exist, but they are not the core M5 flow.
 make db-up
 make migrate-up
 make db-seed
-DEV_HEADER_AUTH=true make server
+make server
 cd frontend
 npm ci
 npm run dev
 ```
 
 Set `NEXT_PUBLIC_REPOCOMPASS_API_URL=http://localhost:8080` in
-`frontend/.env.local`. Local dev uses `NEXT_PUBLIC_REPOCOMPASS_USER_ID=mock_user`.
+`frontend/.env.local`. Product-like local usage should sign in through GitHub
+OAuth. Set `NEXT_PUBLIC_REPOCOMPASS_USER_ID` only when explicitly running the
+API with `DEV_HEADER_AUTH=true`.
 
 ## Testing
 

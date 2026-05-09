@@ -24,6 +24,9 @@ jobs:
         working-directory: backend
         run: go test ./...
 
+      - name: Coverage
+        run: sh backend/scripts/dev/coverage.sh
+
       - name: Vet
         working-directory: backend
         run: go vet ./...
@@ -102,6 +105,8 @@ jobs:
   docker-runtime:
     name: Docker runtime
     runs-on: ubuntu-latest
+    env:
+      GITHUB_WEBHOOK_SECRET: ci_webhook_secret_not_for_production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -164,6 +169,9 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"source_type":"github","url":"https://github.com/octocat/Hello-World"}')"
           echo "$github_response" | python3 -m json.tool
+
+      - name: Run offline CLI demo smoke
+        run: make demo
 
       - name: Collect Docker logs
         if: failure()

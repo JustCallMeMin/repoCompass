@@ -10,7 +10,7 @@ This runbook covers operational procedures for the local RepoCompass product run
 
 | Tool | Version | Purpose |
 |---|---|---|
-| Go | ≥ 1.22 | Backend build and test |
+| Go | Version from `backend/go.mod` | Backend build and test |
 | PostgreSQL | ≥ 15 | Primary data store |
 | `golang-migrate` CLI | latest | Database migrations |
 | Docker / Docker Compose | latest | Local stack |
@@ -24,20 +24,24 @@ This runbook covers operational procedures for the local RepoCompass product run
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL DSN, e.g. `postgres://user:pass@host:5432/repocompass?sslmode=disable` |
 | `PORT` | No (default 8080) | HTTP listen port |
-| `GITHUB_WEBHOOK_SECRET` | No | HMAC secret for GitHub webhook validation |
-| `DEV_HEADER_AUTH` | No | Enables local `X-User-Id` and `X-Organization-Id` headers when set to `true` |
-| `GITHUB_OAUTH_CLIENT_ID` | No | GitHub OAuth application client ID |
-| `GITHUB_OAUTH_CLIENT_SECRET` | No | GitHub OAuth application client secret |
-| `GITHUB_OAUTH_REDIRECT_URL` | No | GitHub OAuth callback URL |
+| `GITHUB_WEBHOOK_SECRET` | Yes | HMAC secret for GitHub webhook validation |
+| `DEV_HEADER_AUTH` | No | Enables local `X-User-Id` and `X-Organization-Id` headers when set to `true`; leave unset for real session auth |
+| `GITHUB_OAUTH_CLIENT_ID` | For login | GitHub OAuth application client ID |
+| `GITHUB_OAUTH_CLIENT_SECRET` | For login | GitHub OAuth application client secret |
+| `GITHUB_OAUTH_REDIRECT_URL` | For login | GitHub OAuth callback URL |
+| `APP_ENV` | No | Set to `production` to mark session cookies `Secure` |
 | `LOG_LEVEL` | No (default info) | Structured log level: debug, info, warn, error |
-| `NEXT_PUBLIC_REPOCOMPASS_USER_ID` | No | Dashboard local-dev actor ID. Defaults to `mock_user`. |
+| `NEXT_PUBLIC_REPOCOMPASS_USER_ID` | No | Dashboard local-dev actor ID. Only set when `DEV_HEADER_AUTH=true`. |
+| `NEXT_PUBLIC_REPOCOMPASS_ORG_ID` | No | Dashboard local-dev organization header. Defaults to Personal org. |
 
 > No repository secrets are required for the CI test pipeline beyond `DATABASE_URL`
 > for integration tests (skipped when absent).
 
-The local migrations seed `mock_user` as owner of the default Personal organization
-(`00000000-0000-0000-0000-000000000000`) so local GitHub and Docker scans work
-without a production auth system.
+Local migrations still seed `mock_user` for deterministic dev/test data. Product
+usage should sign in through GitHub OAuth so the stored user comes from GitHub.
+
+GitHub OAuth uses a persisted one-time `state` value. Expired, missing, or reused
+state values are rejected.
 
 ---
 
@@ -72,8 +76,8 @@ migrate -path backend/db/migrations -database "$DATABASE_URL" up
 # Verify current version
 migrate -path backend/db/migrations -database "$DATABASE_URL" version
 
-# Apply only M6 migrations (000004, 000005)
-migrate -path backend/db/migrations -database "$DATABASE_URL" up 2
+# Apply through latest M6 hardening migration
+migrate -path backend/db/migrations -database "$DATABASE_URL" up
 ```
 
 ### Rollback
@@ -81,8 +85,8 @@ migrate -path backend/db/migrations -database "$DATABASE_URL" up 2
 # Roll back one step
 migrate -path backend/db/migrations -database "$DATABASE_URL" down 1
 
-# Roll back to pre-M6 (remove 000005, 000004)
-migrate -path backend/db/migrations -database "$DATABASE_URL" down 2
+# Roll back one migration at a time and verify data after each step
+migrate -path backend/db/migrations -database "$DATABASE_URL" down 1
 ```
 
 ---
@@ -117,8 +121,15 @@ curl "$BASE/healthz"
 # Operational metrics
 curl "$BASE/api/v1/metrics"
 
-# List organizations as local-dev actor
+# List organizations as local-dev actor when DEV_HEADER_AUTH=true
 curl -H "X-User-Id: mock_user" "$BASE/api/v1/organizations"
+
+# Browser login with real GitHub user
+open "$BASE/api/v1/auth/github/login"
+
+# List org notifications
+curl -H "X-User-Id: mock_user" \
+  "$BASE/api/v1/organizations/00000000-0000-0000-0000-000000000000/notifications"
 
 # Create scan
 curl -X POST "$BASE/api/v1/scans" \
@@ -159,7 +170,8 @@ BASE_URL="$BASE" sh backend/scripts/dev/test-api-m4.sh
 | Local-dev `X-User-Id` actor header is not production auth | Replace with session auth before public deployment |
 | Scan rate limit is in-process only | Replace with shared limiter only if API runs multiple replicas |
 | No TLS enforcement | Run behind a reverse proxy (nginx/Caddy) in staging/prod |
-| GitHub webhook replay cache is not durable | Persist GitHub delivery IDs when durable event storage is introduced |
+| Email notification provider is a stub | Configure a real provider after M6 if outbound email is required |
+| Webhook notification delivery is minimal | Use short timeouts and inspect `notification_deliveries` on failure |
 
 ---
 

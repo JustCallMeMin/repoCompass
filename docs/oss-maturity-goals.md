@@ -10,3 +10,12 @@ The goal of Milestone 7 is to mature RepoCompass from a "buildable product" to a
 5. **Community Workflows:** Issue and PR templates guide contributors to provide the necessary context.
 6. **Release Stability:** Releases are automated, artifacts are validated, and changelogs are maintained.
 7. **Public Demo:** Anyone can see what the tool does immediately via public demo repositories and scripts.
+
+## Current Quality Gates
+
+- Backend unit tests and vet run in CI.
+- Backend coverage runs through `make test-coverage` with a 45% floor and an 85% maturity target.
+- PostgreSQL integration tests run against Dockerized PostgreSQL in CI.
+- Frontend lint, typecheck, tests, audit, and build run in CI.
+- Docker runtime smoke tests validate API and dashboard startup.
+- Release artifacts are built for Linux, macOS, and Windows and include SHA256 checksums.

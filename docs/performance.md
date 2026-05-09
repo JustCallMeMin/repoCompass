@@ -11,6 +11,8 @@ This document records query hot paths and indexes for organization management.
 | Org scan history | scan history by repository and completion time | Medium | Existing repository scan query plus org ownership check. |
 | Org metrics page | metric trend by repository and metric key | Medium | Metric repository/key/time index. |
 | Org insights | aggregate repositories/scans by organization | Medium | Organization, repository, and scan status indexes. |
+| Notifications | notifications by org/user/time | Low | Notification org/user/created index. |
+| Audit review | audit events by org/time | Low | Audit org/time index. |
 
 ## Added Indexes
 
@@ -22,6 +24,8 @@ Migration `backend/db/migrations/000005_add_m6_performance_indexes.up.sql` adds 
 - findings by scan and severity/status
 - metrics by repository, key, and capture time
 - policies by organization
+- notifications by organization/user/time
+- audit events by organization/time
 
 ## Baseline EXPLAIN Checklist
 
@@ -32,22 +36,29 @@ EXPLAIN ANALYZE
 SELECT *
 FROM repositories
 WHERE organization_id = 'org_personal_default'
-ORDER BY updated_at DESC
+ORDER BY name ASC
 LIMIT 20;
 
 EXPLAIN ANALYZE
 SELECT *
-FROM scan_runs
-WHERE repository_id = 'repo_id'
-ORDER BY completed_at DESC
+FROM scans
+WHERE status = 'completed'
+ORDER BY end_time DESC
 LIMIT 20;
 
 EXPLAIN ANALYZE
 SELECT *
-FROM metric_points
-WHERE repository_id = 'repo_id'
+FROM metric_snapshots
+WHERE scan_id = 'scan_id'
   AND metric_key = 'assessment.overall_score'
 ORDER BY captured_at DESC
+LIMIT 50;
+
+EXPLAIN ANALYZE
+SELECT *
+FROM notifications
+WHERE organization_id = 'org_personal_default'
+ORDER BY created_at DESC
 LIMIT 50;
 ```
 

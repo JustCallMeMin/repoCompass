@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,6 +54,8 @@ type SessionStore interface {
 	SaveSession(ctx context.Context, session auth.Session) error
 	GetSessionByTokenHash(ctx context.Context, tokenHash string) (auth.Session, error)
 	RevokeSession(ctx context.Context, id string) error
+	SaveOAuthState(ctx context.Context, state auth.OAuthState) error
+	ConsumeOAuthState(ctx context.Context, provider, state string, now time.Time) (auth.OAuthState, error)
 }
 
 // GitHubIntegrationStore manages GitHub integrations and async scan jobs.
@@ -80,6 +83,8 @@ type Server struct {
 	sessions            SessionStore
 	integrations        GitHubIntegrationStore
 	devHeaderAuth       bool
+	notifications       NotificationStore
+	audit               AuditStore
 }
 
 // NewServer creates an API server with required dependencies.
@@ -104,7 +109,9 @@ func NewServer(runner scan.ScanRunner, history HistoryReader, github GitHubClone
 		}),
 		sessions:      sessionStoreFrom(orgs),
 		integrations:  integrationStoreFrom(orgs),
-		devHeaderAuth: true,
+		notifications: notificationStoreFrom(orgs),
+		audit:         auditStoreFrom(orgs),
+		devHeaderAuth: false,
 	}
 }
 
@@ -141,9 +148,12 @@ func (s *Server) Handler() http.Handler {
 
 	// Organization Management
 	mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
+	mux.HandleFunc("POST /api/v1/organizations", s.handleCreateOrganization)
 	mux.HandleFunc("GET /api/v1/organizations/{organization_id}", s.handleGetOrganization)
+	mux.HandleFunc("PUT /api/v1/organizations/{organization_id}", s.handleUpdateOrganization)
 	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/members", s.handleListMemberships)
 	mux.HandleFunc("POST /api/v1/organizations/{organization_id}/members", s.handleAddMember)
+	mux.HandleFunc("PUT /api/v1/organizations/{organization_id}/members/{user_id}", s.handleUpdateMember)
 	mux.HandleFunc("DELETE /api/v1/organizations/{organization_id}/members/{user_id}", s.handleRemoveMember)
 	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/repositories", s.handleListOrgRepositories)
 
@@ -156,6 +166,10 @@ func (s *Server) Handler() http.Handler {
 	// Operational Metrics & Insights
 	mux.HandleFunc("GET /api/v1/metrics", s.handleMetrics)
 	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/insights", s.handleOrgInsights)
+	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/notifications", s.handleListNotifications)
+	mux.HandleFunc("POST /api/v1/organizations/{organization_id}/notifications/{notification_id}/read", s.handleMarkNotificationRead)
+	mux.HandleFunc("GET /api/v1/organizations/{organization_id}/notification-preferences", s.handleGetNotificationPreference)
+	mux.HandleFunc("PUT /api/v1/organizations/{organization_id}/notification-preferences", s.handleSaveNotificationPreference)
 
 	return requestIDMiddleware(recoveryMiddleware(mux))
 }
@@ -170,7 +184,14 @@ func (s *Server) handleCreateScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := actorIDFromRequest(r)
+	userID := s.authenticatedActorID(r)
+	if userID == "" && s.authSvc != nil {
+		writeRequestError(w, r, http.StatusUnauthorized, "unauthorized", "session is required")
+		return
+	}
+	if userID == "" {
+		userID = "anonymous"
+	}
 	if s.scanLimiter != nil && !s.scanLimiter.allow(userID, time.Now()) {
 		writeError(w, http.StatusTooManyRequests, "rate_limited", "scan request rate limit exceeded")
 		return
@@ -257,7 +278,11 @@ func (s *Server) handleRepositoryScans(w http.ResponseWriter, r *http.Request) {
 		orgID = org.DefaultPersonalOrgID
 	}
 	if s.authSvc != nil {
-		userID := actorIDFromRequest(r)
+		userID := s.authenticatedActorID(r)
+		if userID == "" {
+			writeRequestError(w, r, http.StatusUnauthorized, "unauthorized", "session is required")
+			return
+		}
 		if err := s.authSvc.CheckAccessRepo(r.Context(), userID, orgID); err != nil {
 			writeError(w, http.StatusForbidden, "forbidden", err.Error())
 			return
@@ -320,7 +345,11 @@ func (s *Server) handleRepositoryMetrics(w http.ResponseWriter, r *http.Request)
 		orgID = org.DefaultPersonalOrgID
 	}
 	if s.authSvc != nil {
-		userID := actorIDFromRequest(r)
+		userID := s.authenticatedActorID(r)
+		if userID == "" {
+			writeRequestError(w, r, http.StatusUnauthorized, "unauthorized", "session is required")
+			return
+		}
 		if err := s.authSvc.CheckAccessRepo(r.Context(), userID, orgID); err != nil {
 			writeError(w, http.StatusForbidden, "forbidden", err.Error())
 			return
@@ -352,7 +381,7 @@ func (s *Server) handleRepositoryMetrics(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
-	if s.githubWebhookSecret == "" && !s.devHeaderAuth {
+	if s.githubWebhookSecret == "" {
 		writeRequestError(w, r, http.StatusServiceUnavailable, "github_webhook_unconfigured", "GitHub webhook secret is required")
 		return
 	}
@@ -368,7 +397,12 @@ func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 
 	switch value.Event {
 	case "ping":
-		writeData(w, r, http.StatusOK, map[string]string{"status": "ok", "event": value.Event})
+		eventID, err := s.acceptGitHubNonPush(r.Context(), value, ghintegration.WebhookStatusIgnored)
+		if err != nil {
+			writeRequestError(w, r, http.StatusInternalServerError, "github_webhook_persist_failed", err.Error())
+			return
+		}
+		writeData(w, r, http.StatusOK, map[string]string{"status": "ok", "event": value.Event, "event_id": eventID})
 	case "push":
 		response, err := s.acceptGitHubPush(r.Context(), value)
 		if err != nil {
@@ -377,7 +411,12 @@ func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		writeData(w, r, http.StatusAccepted, response)
 	default:
-		writeData(w, r, http.StatusAccepted, map[string]string{"status": "ignored", "event": value.Event})
+		eventID, err := s.acceptGitHubNonPush(r.Context(), value, ghintegration.WebhookStatusIgnored)
+		if err != nil {
+			writeRequestError(w, r, http.StatusInternalServerError, "github_webhook_persist_failed", err.Error())
+			return
+		}
+		writeData(w, r, http.StatusAccepted, map[string]string{"status": "ignored", "event": value.Event, "event_id": eventID})
 	}
 }
 
@@ -478,7 +517,15 @@ func requestIDMiddleware(next http.Handler) http.Handler {
 			requestID = newRequestID()
 		}
 		w.Header().Set("X-Request-ID", requestID)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		if origin != "*" {
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Add("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID, X-Organization-Id, X-User-Id")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
@@ -528,12 +575,26 @@ func integrationStoreFrom(value any) GitHubIntegrationStore {
 	return nil
 }
 
-const defaultActorID = "mock_user"
+// notificationStoreFrom extracts notification storage from the composed store.
+func notificationStoreFrom(value any) NotificationStore {
+	if store, ok := value.(NotificationStore); ok {
+		return store
+	}
+	return nil
+}
+
+// auditStoreFrom extracts audit storage from the composed store.
+func auditStoreFrom(value any) AuditStore {
+	if store, ok := value.(AuditStore); ok {
+		return store
+	}
+	return nil
+}
 
 func actorIDFromRequest(r *http.Request) string {
 	userID := strings.TrimSpace(r.Header.Get("X-User-Id"))
-	if userID == "" {
-		return defaultActorID
+	if userID == "" && os.Getenv("REPOCOMPASS_ALLOW_MOCK_USER") == "true" {
+		return "mock_user"
 	}
 	return userID
 }

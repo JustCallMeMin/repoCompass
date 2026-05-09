@@ -27,10 +27,34 @@ We rely on GitHub's automated "Generate Release Notes" feature. Ensure Pull Requ
 5. This triggers the workflow and creates a **Draft Release** on GitHub.
 
 ## 5. Artifact Validation
-The Release workflow automatically builds the Go binary (`make build`) and runs a smoke test (`./backend/bin/repocompass version`) to ensure the artifact is valid before attaching it to the release.
+The Release workflow uses `backend/go.mod` as the Go version source of truth.
+It builds CLI artifacts for:
+
+- Linux amd64
+- Linux arm64
+- macOS amd64
+- macOS arm64
+- Windows amd64
+
+The workflow smoke-tests the Linux artifact with:
+
+```bash
+./dist/repocompass-linux-amd64 help
+./dist/repocompass-linux-amd64 version
+./dist/repocompass-linux-amd64 scan ./backend/testdata/fixtures/local-repositories/good-onboarding-repo
+```
+
+It also writes `dist/SHA256SUMS` for artifact verification.
+
+To verify a downloaded artifact:
+
+```bash
+sha256sum -c SHA256SUMS
+```
 
 ## 6. Publishing
-Review the Draft Release on GitHub, adjust the changelog text if necessary to make it more user-friendly, and click **Publish release**.
+Review the Draft Release on GitHub, check the generated notes, confirm the
+attached artifacts and `SHA256SUMS`, then click **Publish release**.
 
 ## 7. Rollbacks and Hotfixes
 If a released version contains a critical flaw:

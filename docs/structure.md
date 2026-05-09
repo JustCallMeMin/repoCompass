@@ -1,10 +1,13 @@
 # Repository Structure
 
-This document describes the initial backend-oriented directory structure of the repository.
+This document describes the current repository structure for the backend,
+dashboard, Docker runtime, documentation, and GitHub automation.
 
 ## Overview
 
-The repository is organized as a multi-area project, with the backend implementation isolated under `backend/`.
+The repository is organized as a multi-area project. The Go backend lives under
+`backend/`, the Next.js dashboard under `frontend/`, and contributor-facing
+project material under `docs/` and `.github/`.
 
 ## Top-Level Directories
 
@@ -12,7 +15,10 @@ The repository is organized as a multi-area project, with the backend implementa
 - `frontend/`: Next.js dashboard product surface.
 - `deployments/`: Reserved for deployment-related manifests and environment setup.
 - `docs/`: Project documentation written in English.
-- `docs/analyzer-contract.md`: Contributor-facing contract for future analyzer implementations.
+- `CONTRIBUTING.md`: Root contributor workflow entrypoint.
+- `SECURITY.md`: Private vulnerability reporting policy.
+- `CODE_OF_CONDUCT.md`: Community participation policy.
+- `docs/analyzer-contract.md`: Contributor-facing analyzer implementation contract.
 - `docs/finding-taxonomy.md`: Contributor-facing taxonomy for findings, evidence, and recommendations.
 - `docs/report-format.md`: Planned Markdown and JSON report format contract.
 - `docs/scan-lifecycle.md`: Developer-facing scan lifecycle guide for the core scan engine.
@@ -48,7 +54,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/internal/storage/`: Storage abstractions and persistence helpers.
 - `backend/internal/service/`: Business logic and service orchestration.
 - `backend/db/`: Database-related assets.
-- `backend/db/README.md`: Usage guide for organizing migrations and seed data during the bootstrap phase.
+- `backend/db/README.md`: Dockerized PostgreSQL, migration, and seed workflow.
 - `backend/db/migrations/`: Schema migration files.
 - `backend/db/seeds/`: Seed data and bootstrap database scripts.
 - `backend/testdata/`: Shared test fixtures and sample inputs.
@@ -57,6 +63,7 @@ The repository is organized as a multi-area project, with the backend implementa
 - `backend/scripts/`: Developer and automation scripts.
 - `backend/scripts/dev/`: Local development helper scripts.
 - `backend/scripts/docker/`: Docker runtime entrypoint scripts.
+- `backend/scripts/dev/prepare-demo.sh`: Optional public demo repository prefetch helper.
 
 ## Frontend Directory Layout
 
@@ -65,6 +72,15 @@ The repository is organized as a multi-area project, with the backend implementa
 - `frontend/lib/`: API client helpers for the backend product API.
 - `frontend/Dockerfile`: Docker image definition for the dashboard runtime.
 - `frontend/.env.example`: Local dashboard environment template.
+
+## Automation Layout
+
+- `.github/ISSUE_TEMPLATE/`: Bug, feature, and analyzer request templates.
+- `.github/pull_request_template.md`: Pull request checklist.
+- `.github/dependabot.yml`: Dependency update automation for Go, npm, and GitHub Actions.
+- `.github/workflows/ci.yml`: Backend, frontend, PostgreSQL, Docker, and demo smoke checks.
+- `.github/workflows/codeql.yml`: GitHub CodeQL security analysis.
+- `.github/workflows/release.yml`: Multi-platform CLI release artifact workflow.
 
 ## Notes
 

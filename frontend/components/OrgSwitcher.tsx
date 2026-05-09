@@ -19,10 +19,13 @@ export function OrgSwitcher() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const stored = window.localStorage.getItem("repocompass_org_id");
     listOrganizations()
       .then((res) => {
         const list = [PERSONAL_ORG, ...(res ?? [])];
         setOrgs(list);
+        const match = list.find((org) => org.id === stored);
+        if (match) setSelected(match);
       })
       .catch(() => {/* API unavailable — show only personal org */});
   }, []);
@@ -60,6 +63,7 @@ export function OrgSwitcher() {
               }`}
               onClick={() => {
                 setSelected(o);
+                window.localStorage.setItem("repocompass_org_id", o.id);
                 setOpen(false);
               }}
             >

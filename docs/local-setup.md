@@ -4,7 +4,7 @@ This guide explains how to set up the RepoCompass development environment locall
 
 ## Prerequisites
 
-- **Go 1.22+**
+- **Go version from `backend/go.mod`**
 - **Node.js 20+**
 - **Git**
 - **Docker** and **Docker Compose**
@@ -52,11 +52,12 @@ make db-seed
 With the database running, you can start the API server:
 
 ```bash
-DEV_HEADER_AUTH=true make server
+make server
 ```
 
 The server listens on `http://localhost:8080`.
 `DEV_HEADER_AUTH=true` enables local `X-User-Id` and `X-Organization-Id`
+for tests and demos. Leave it unset when validating real GitHub OAuth sessions.
 headers. Session/OAuth mode uses `GITHUB_OAUTH_CLIENT_ID`,
 `GITHUB_OAUTH_CLIENT_SECRET`, and `GITHUB_OAUTH_REDIRECT_URL`.
 
